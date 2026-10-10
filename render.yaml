@@ -1,0 +1,63 @@
+services:
+  - type: web
+    name: enterprise-football-engine
+    runtime: docker
+    region: frankfurt
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    maxShutdownDelaySeconds: 30
+    # Disco persistente per il registro previsioni (Performance). Senza disco lo storico si azzera a ogni deploy.
+    disk:
+      name: prediction-ledger
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 10000
+      - key: DEMO_MODE
+        value: false
+      - key: AI_MODE
+        value: active
+      - key: AI_PROVIDER
+        value: gemini
+      - key: GEMINI_MODEL_DEFAULT
+        value: gemini-2.5-flash-lite
+      - key: GEMINI_MODEL_CHALLENGE
+        value: gemini-2.5-flash
+      - key: GEMINI_MODEL_EXPLANATION
+        value: gemini-2.5-flash-lite
+      - key: API_FOOTBALL_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ADMIN_API_TOKEN
+        sync: false
+      - key: AI_DUPLICATE_EVIDENCE_SCALE
+        value: 0.50
+      - key: AI_INPUT_COST_PER_MILLION
+        value: 0.30
+      - key: AI_CACHED_INPUT_COST_PER_MILLION
+        value: 0.03
+      - key: AI_OUTPUT_COST_PER_MILLION
+        value: 2.50
+      - key: AI_DAILY_CALL_LIMIT
+        value: 100
+      - key: AI_DAILY_TOKEN_LIMIT
+        value: 250000
+      - key: AI_DAILY_COST_LIMIT_USD
+        value: 3
+      - key: PREDICTION_LEDGER_PATH
+        value: data/predictions.jsonl
+      - key: TOP_PICKS_AI_ENABLED
+        value: true
+      - key: TOP_PICKS_AI_SHORTLIST_MULTIPLIER
+        value: 1

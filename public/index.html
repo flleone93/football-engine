@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Motore ibrido, probabilistico e verificabile per l'analisi delle partite di calcio.">
+  <meta name="theme-color" content="#151c18">
+  <title>Enterprise Football Prediction Engine</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23151c18'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23b8ef65' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#mainContent">Vai al contenuto principale</a>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand-block">
+        <p class="brand-kicker">HYBRID MATCH INTELLIGENCE</p>
+        <h1>Enterprise Football Engine</h1>
+        <p>Motore statistico deterministico · agenti AI contestuali · audit riproducibile</p>
+      </div>
+      <div class="system-status" aria-label="Stato del sistema">
+        <span id="modeBadge" class="badge pending">Connessione…</span>
+        <span id="aiModeBadge" class="badge neutral">AI da verificare</span>
+        <span id="lastUpdate" class="status-time">—</span>
+        <button id="refreshButton" class="icon-button" type="button" aria-label="Aggiorna il calendario" title="Aggiorna il calendario">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0 2 5h-2.1a6 6 0 1 1-1.4-6.2L15 13h8V5l-3 3a8 8 0 0 0-14-2"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="disclaimer-strip">
+    <strong>Previsione probabilistica, non garanzia di risultato o profitto.</strong>
+    Solo per maggiorenni; gioca responsabilmente. Quote e disponibilità possono cambiare.
+  </div>
+
+  <nav class="tabs" aria-label="Aree dell'applicazione">
+    <div role="tablist" aria-label="Strumenti di previsione">
+      <button id="analysisTab" type="button" role="tab" aria-selected="true" aria-controls="analysisView" tabindex="0">Analisi partita</button>
+      <button id="topPicksTab" type="button" role="tab" aria-selected="false" aria-controls="topPicksView" tabindex="-1">Top di giornata</button>
+      <button id="performanceTab" type="button" role="tab" aria-selected="false" aria-controls="performanceView" tabindex="-1">Performance</button>
+      <button id="settingsTab" type="button" role="tab" aria-selected="false" aria-controls="settingsView" tabindex="-1" hidden>Impostazioni</button>
+    </div>
+  </nav>
+
+  <main id="mainContent" class="app-shell">
+    <div id="appStatus" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+
+    <div id="snapshotNotice" class="notice hidden" role="note"></div>
+
+    <div id="demoNotice" class="notice hidden" role="note">
+      <strong>Modalità dimostrativa.</strong> I dati servono a provare l'app. Per il flusso live configura la chiave del provider esclusivamente nel backend.
+    </div>
+
+    <section class="system-overview" aria-labelledby="overviewTitle">
+      <div>
+        <p class="eyebrow">STATO OPERATIVO</p>
+        <h2 id="overviewTitle">Dati aggiornati. Inferenze separate. Decisioni auditabili.</h2>
+      </div>
+      <div class="overview-grid">
+        <article><span>Partite</span><strong id="fixtureCount">—</strong></article>
+        <article><span>Competizioni</span><strong id="leagueCount">—</strong></article>
+        <article><span>Fonte dati</span><strong id="providerName">—</strong></article>
+        <article><span>Bookmaker</span><strong id="bookmakerName">—</strong></article>
+      </div>
+    </section>
+
+    <section id="analysisView" class="tab-panel" role="tabpanel" aria-labelledby="analysisTab">
+      <div class="analysis-layout">
+        <aside class="panel fixture-browser" aria-labelledby="fixturesTitle">
+          <div class="panel-heading">
+            <div><p class="eyebrow">MATCH CENTER</p><h2 id="fixturesTitle">Calendario</h2></div>
+            <span id="filteredCount" class="count-pill" aria-label="Partite filtrate">0</span>
+          </div>
+
+          <div class="filters">
+            <label for="searchInput">Cerca squadra o competizione</label>
+            <input id="searchInput" type="search" placeholder="Es. Spagna, Champions League" autocomplete="off">
+            <div class="filter-row">
+              <label for="leagueFilter">Competizione
+                <select id="leagueFilter"><option value="">Tutte</option></select>
+              </label>
+              <label for="dateFilter">Data
+                <select id="dateFilter"><option value="">Tutte</option></select>
+              </label>
+            </div>
+          </div>
+
+          <div id="fixturesLoading" class="loading-card" role="status"><span class="spinner" aria-hidden="true"></span><p>Caricamento del calendario…</p></div>
+          <div id="fixturesError" class="error-card hidden" role="alert"></div>
+          <div id="fixtureList" class="fixture-list" aria-label="Partite disponibili"></div>
+        </aside>
+
+        <section class="analysis-stage" aria-labelledby="analysisStageTitle">
+          <h2 id="analysisStageTitle" class="sr-only">Analisi della partita selezionata</h2>
+
+          <div id="emptyState" class="panel empty-state">
+            <div class="radar" aria-hidden="true"><span></span><i></i></div>
+            <p class="eyebrow">PRONTO PER L'ANALISI</p>
+            <h3>Seleziona una partita</h3>
+            <p>Il backend produrrà una baseline statistica, applicherà solo gli aggiustamenti AI validati e pubblicherà un audit completo.</p>
+          </div>
+
+          <div id="selectionState" class="panel selection-state hidden">
+            <div class="selected-fixture">
+              <div>
+                <p id="selectedLeague" class="eyebrow">—</p>
+                <h3 id="selectedTitle">—</h3>
+                <p id="selectedMeta" class="muted">—</p>
+              </div>
+              <div class="analysis-options">
+                <label class="switch" for="neutralToggle">
+                  <input id="neutralToggle" type="checkbox">
+                  <span aria-hidden="true"></span>
+                  Campo neutro
+                </label>
+                <button id="analyzeButton" class="primary-button" type="button">Avvia analisi enterprise</button>
+              </div>
+            </div>
+            <div class="preflight-grid" aria-label="Configurazione analisi">
+              <article><span>Fonte</span><strong id="preflightSource">—</strong></article>
+              <article><span>Pipeline</span><strong>Statistica + AI controllata</strong></article>
+              <article><span>Simulazioni</span><strong>≥ 10.000</strong></article>
+            </div>
+          </div>
+
+          <div id="analysisLoading" class="panel analysis-loading hidden" aria-busy="true">
+            <div class="agent-orbit" aria-hidden="true"><span></span><span></span><span></span><i></i></div>
+            <p class="eyebrow">ORCHESTRAZIONE IBRIDA</p>
+            <h3 id="loadingStep">Acquisizione dei dati…</h3>
+            <div id="analysisProgress" class="progress" role="progressbar" aria-label="Avanzamento dell'analisi" aria-valuemin="0" aria-valuemax="100" aria-valuenow="8"><span id="loadingProgress"></span></div>
+            <p class="muted">I calcoli restano deterministici. Gli agenti AI possono proporre soltanto aggiustamenti limitati e motivati.</p>
+          </div>
+
+          <div id="analysisError" class="error-card hidden" role="alert"></div>
+          <div id="analysisResult" class="analysis-result hidden" tabindex="-1"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="topPicksView" class="tab-panel" role="tabpanel" aria-labelledby="topPicksTab" hidden>
+      <div class="panel top-picks-panel">
+        <div class="panel-heading top-heading">
+          <div>
+            <p class="eyebrow">DAILY RISK-ADJUSTED RANKING</p>
+            <h2 id="topPicksTitle">Top match del giorno</h2>
+            <p>Una sola selezione per partita, classificata per probabilità, confidenza, qualità dati e robustezza.</p>
+          </div>
+          <span class="count-pill">5 · 6 · 7</span>
+        </div>
+
+        <form id="topPicksForm" class="top-controls">
+          <label for="topPicksDate">Data
+            <select id="topPicksDate"><option value="">Seleziona una data</option></select>
+          </label>
+          <fieldset>
+            <legend>Numero di selezioni</legend>
+            <div class="segmented-control">
+              <input id="topLimit5" type="radio" name="topLimit" value="5" checked><label for="topLimit5">Top 5</label>
+              <input id="topLimit6" type="radio" name="topLimit" value="6"><label for="topLimit6">Top 6</label>
+              <input id="topLimit7" type="radio" name="topLimit" value="7"><label for="topLimit7">Top 7</label>
+            </div>
+          </fieldset>
+          <label for="topPicksStake">Importo simulato (€)
+            <input id="topPicksStake" type="number" min="1" max="10000" step="1" value="10" inputmode="decimal">
+          </label>
+          <button id="topPicksButton" class="primary-button" type="submit">Genera classifica</button>
+        </form>
+
+        <div id="topPicksLoading" class="loading-inline hidden" role="status"><span class="spinner" aria-hidden="true"></span><span>Analisi delle competizioni del giorno…</span></div>
+        <div id="topPicksError" class="error-card hidden" role="alert"></div>
+      </div>
+      <div id="topPicksResult" class="top-picks-result hidden" tabindex="-1"></div>
+    </section>
+
+    <section id="performanceView" class="tab-panel" role="tabpanel" aria-labelledby="performanceTab" hidden tabindex="-1">
+      <div class="panel">
+        <div class="panel-heading top-heading performance-heading">
+          <div>
+            <p class="eyebrow">POST-MATCH VALIDATION</p>
+            <h2>Performance e calibrazione</h2>
+            <p>Ogni previsione pubblicata prima del calcio d'inizio viene registrata e confrontata con il risultato al 90'. Nessun ritocco a posteriori.</p>
+          </div>
+          <div class="performance-actions">
+            <button id="performanceRefresh" class="secondary-button" type="button">Aggiorna risultati</button>
+            <button id="performanceExport" class="secondary-button" type="button">Esporta CSV</button>
+          </div>
+        </div>
+        <div id="performanceLoading" class="loading-inline hidden" role="status"><span class="spinner" aria-hidden="true"></span><span>Valutazione dello storico previsioni…</span></div>
+        <div id="performanceError" class="error-card hidden" role="alert"></div>
+      </div>
+      <div id="performanceResult" class="performance-result hidden"></div>
+    </section>
+
+    <section id="settingsView" class="tab-panel" role="tabpanel" aria-labelledby="settingsTab" hidden tabindex="-1">
+      <form id="settingsForm" class="panel settings-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">DISPOSITIVO</p>
+            <h2>Impostazioni</h2>
+            <p>Valgono solo su questo telefono. La chiave AI resta salvata qui e viene inviata soltanto al provider scelto.</p>
+          </div>
+        </div>
+        <fieldset class="settings-group">
+          <legend>Agenti AI</legend>
+          <label for="settingsProvider">Provider
+            <select id="settingsProvider">
+              <option value="off">Disattivati (solo motore statistico)</option>
+              <option value="gemini">Google Gemini (consigliato, economico)</option>
+              <option value="openai">OpenAI</option>
+            </select>
+          </label>
+          <label for="settingsKey">Chiave API
+            <input id="settingsKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Incolla la chiave">
+          </label>
+          <p id="settingsKeyState" class="muted"></p>
+          <label for="settingsMode">Modalità
+            <select id="settingsMode">
+              <option value="active">Attiva: aggiustamenti applicati entro i limiti</option>
+              <option value="shadow">Shadow: agenti eseguiti, numeri invariati</option>
+            </select>
+          </label>
+          <button id="settingsClearKey" class="secondary-button" type="button">Rimuovi chiave</button>
+        </fieldset>
+        <fieldset class="settings-group">
+          <legend>Dati</legend>
+          <label for="settingsDays">Giorni da scansionare
+            <select id="settingsDays"><option value="2">2</option><option value="3">3</option><option value="5">5</option><option value="7">7</option></select>
+          </label>
+          <div id="settingsLeagues" class="settings-leagues" role="group" aria-label="Competizioni"></div>
+          <label class="switch" for="settingsAutoTrack"><input id="settingsAutoTrack" type="checkbox"><span aria-hidden="true"></span>Registra automaticamente le previsioni delle prossime 48 ore (ogni 6 ore, all'apertura)</label>
+        </fieldset>
+        <div class="settings-actions">
+          <button class="primary-button" type="submit">Salva e riavvia</button>
+          <button id="settingsTrackNow" class="secondary-button" type="button">Aggiorna storico ora</button>
+        </div>
+        <p id="settingsStatus" class="muted" role="status"></p>
+      </form>
+    </section>
+  </main>
+
+  <footer>
+    <p>Previsioni probabilistiche, non certezze. Il sistema separa fonti, modelli, valutazioni AI, inferenze non confermate e raccomandazione finale.</p>
+    <p>Solo 18+ · Gioca responsabilmente.</p>
+  </footer>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

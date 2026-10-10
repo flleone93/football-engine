@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+.git
+.agents
+.codex
+node_modules
+data
+dist
+test
+*.md
+coverage
+*.log
+*.zip
+upload
