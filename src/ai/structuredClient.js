@@ -11,6 +11,7 @@ function normalizeUsage(usage = {}) {
     ?? usage.cachedContentTokenCount
     ?? usage.cached_input_tokens
     ?? usage.total_cached_tokens
+    ?? usage.cache_read_input_tokens
     ?? 0;
   return { inputTokens, outputTokens, cachedInputTokens };
 }
@@ -210,6 +211,96 @@ export class GeminiStructuredClient extends StructuredClientBase {
   }
 }
 
+// Structured outputs Anthropic: lo schema non accetta vincoli numerici, di lunghezza o di cardinalità degli array.
+// Vengono rimossi qui e restano verificati dal validatore backend dopo la risposta.
+const CLAUDE_SCHEMA_DROPPED_KEYS = new Set(['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength', 'minItems', 'maxItems', 'uniqueItems', 'pattern']);
+
+export function toClaudeSchema(value, parentKey = '') {
+  if (Array.isArray(value)) return value.map((item) => toClaudeSchema(item, parentKey));
+  if (!value || typeof value !== 'object') return value;
+  const output = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (parentKey !== 'properties' && CLAUDE_SCHEMA_DROPPED_KEYS.has(key)) continue;
+    output[key] = toClaudeSchema(child, key);
+  }
+  if (output.type === 'object' && parentKey !== 'properties') output.additionalProperties = false;
+  return output;
+}
+
+/**
+ * Anthropic Claude con chiave dell'utente (Messages API). Chiamata diretta anche dal browser dell'app iPhone:
+ * l'intestazione anthropic-dangerous-direct-browser-access abilita CORS; la chiave resta sul dispositivo.
+ */
+export class AnthropicStructuredClient extends StructuredClientBase {
+  provider = 'anthropic';
+
+  async json({ agentId, model, schemaName, schema, system, user, timeoutMs }) {
+    const budget = this.begin(agentId, system, user);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs || this.config.requestTimeoutMs);
+    const effort = this.config.reasoningEffort === 'none' ? 'low' : this.config.reasoningEffort;
+    const body = {
+      model,
+      // Thinking adattivo sempre attivo sui modelli correnti: lo spazio include ragionamento e JSON finale.
+      max_tokens: 16000,
+      system,
+      messages: [{ role: 'user', content: user }],
+      output_config: { effort, format: { type: 'json_schema', schema: toClaudeSchema(schema) } },
+      // Se i classificatori di sicurezza rifiutano, la richiesta viene rieseguita lato server sul modello consigliato.
+      fallbacks: 'default'
+    };
+    try {
+      const response = await fetch(`${this.config.baseUrl.replace(/\/+$/, '')}/messages`, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'x-api-key': this.config.apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-beta': 'server-side-fallback-2026-07-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(payload?.error?.message || `Anthropic HTTP ${response.status}`);
+        error.code = `anthropic_${response.status}`;
+        throw error;
+      }
+      if (payload.stop_reason === 'refusal') {
+        const error = new Error('Richiesta rifiutata dai controlli di sicurezza del modello.');
+        error.code = 'anthropic_refusal';
+        throw error;
+      }
+      if (payload.stop_reason === 'max_tokens') {
+        const error = new Error('Risposta Claude troncata dal limite di token.');
+        error.code = 'anthropic_max_tokens';
+        throw error;
+      }
+      const textBlocks = (payload.content || []).filter((block) => block.type === 'text' && typeof block.text === 'string');
+      const outputText = textBlocks.at(-1)?.text || '';
+      if (!outputText) {
+        const error = new Error('Risposta Claude vuota.');
+        error.code = 'empty_ai_response';
+        throw error;
+      }
+      const data = JSON.parse(outputText);
+      const usage = this.recordSuccess(agentId, payload, budget);
+      return {
+        data, usage, provider: this.provider, model: payload.model || model,
+        responseId: payload.id || null,
+        promptHash: sha256({ provider: this.provider, model, system, user, schemaName })
+      };
+    } catch (error) {
+      this.recordError(agentId, error, budget);
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
 const CLAUDE_TIERS = new Set(['quick', 'default', 'complex']);
 
 /**
@@ -261,6 +352,7 @@ export class ClaudeArtifactStructuredClient extends StructuredClientBase {
 
 export function createStructuredAiClient(config, ledger, { sampler = null } = {}) {
   if (config.provider === 'claude') return new ClaudeArtifactStructuredClient(config, ledger, sampler);
+  if (config.provider === 'anthropic') return new AnthropicStructuredClient(config, ledger);
   if (config.provider === 'gemini') return new GeminiStructuredClient(config, ledger);
   return new OpenAiStructuredClient(config, ledger);
 }

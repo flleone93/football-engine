@@ -28,6 +28,15 @@ Il progetto è una base eseguibile e pubblicabile per un motore ibrido di previs
 | Alta | Lo schema condiviso contiene vincoli non supportati dal subset JSON Schema Gemini | Aggiunta conversione deterministica dello schema e validazione applicativa post-risposta |
 | Alta | Interactions API conserva lo stato per impostazione predefinita | Ogni richiesta Gemini imposta esplicitamente `store=false` |
 
+## Aggiornamento 1.9.0: provider Anthropic Claude
+
+| Priorità | Rilievo | Correzione |
+|---|---|---|
+| Alta | Nell'app iPhone gli agenti AI potevano usare solo Gemini o OpenAI | Adapter `anthropic` (Messages API, Claude Opus 5.5, output strutturato `json_schema`, fallback lato server sui rifiuti) selezionabile e consigliato nelle Impostazioni |
+| Media | Schemi agente con vincoli non accettati dagli output strutturati Anthropic | Conversione deterministica dello schema; i vincoli restano verificati dal validatore backend |
+
+Verifiche: 53 test superati, compresa una prova rosso-verde (adapter disattivato → 4 test su 5 falliscono). Nell'app in browser a 390×844 con chiave di prova: 4 richieste reali a `api.anthropic.com/v1/messages` con modello, intestazioni e formato attesi, risposta 401 leggibile (CORS consentito) e fallback al motore statistico. Non verificabile senza una chiave valida: la risposta effettiva del modello.
+
 ## Rilievi Chiusi nella 1.9.0
 
 | Priorità | Rilievo | Correzione |

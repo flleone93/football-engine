@@ -183,13 +183,14 @@
           <legend>Agenti AI</legend>
           <label for="settingsProvider">Provider
             <select id="settingsProvider">
-              <option value="off">Disattivati (solo motore statistico)</option>
-              <option value="gemini">Google Gemini (consigliato)</option>
+              <option value="anthropic">Anthropic Claude (consigliato)</option>
+              <option value="gemini">Google Gemini</option>
               <option value="openai">OpenAI</option>
+              <option value="off">Disattivati (solo motore statistico)</option>
             </select>
           </label>
           <label for="settingsKey">Chiave API
-            <input id="settingsKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Incolla la chiave">
+            <input id="settingsKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Incolla la chiave (Claude: sk-ant-…)">
           </label>
           <p id="settingsKeyState" class="muted small"></p>
           <label for="settingsMode">Modalità
@@ -199,7 +200,7 @@
             </select>
           </label>
           <button id="settingsClearKey" class="secondary-button" type="button">Rimuovi chiave</button>
-          <p class="muted small">La chiave resta su questo telefono e viene inviata solo al provider scelto.</p>
+          <p class="muted small">Consigliato: Claude Opus 5.5 di Anthropic. Crea la chiave su console.anthropic.com → API Keys. La chiave resta su questo telefono e viene inviata solo al provider scelto. Limite di spesa interno: 3 $ al giorno.</p>
         </fieldset>
         <fieldset class="settings-group">
           <legend>Dati</legend>

@@ -9,7 +9,7 @@ Versione 1.9.0. Motore ibrido per l'analisi probabilistica delle partite di calc
 | Modo | Dati | Agenti AI | Come si apre |
 |---|---|---|---|
 | **Artifact claude.ai** | Snapshot reale ESPN (155 partite in 15 competizioni al 10/10/2026) | Eseguiti da **Claude** nel runtime Artifact, senza chiavi | [claude.ai/artifact/TEoB1n8Mkv8aDVSH4GHnEU](https://claude.ai/artifact/TEoB1n8Mkv8aDVSH4GHnEU) (privato finché non lo condividi) |
-| **App iPhone** | **Live** ESPN scaricato dal telefono | Gemini o OpenAI con la chiave salvata sul telefono | [flleone93.github.io/football-engine](https://flleone93.github.io/football-engine/) → Safari → Condividi → Aggiungi alla schermata Home |
+| **App iPhone** | **Live** ESPN scaricato dal telefono | **Claude (consigliato)**, Gemini o OpenAI con la chiave salvata sul telefono | [flleone93.github.io/football-engine](https://flleone93.github.io/football-engine/) → Safari → Condividi → Aggiungi alla schermata Home |
 | **Server locale / Render** | **Live** ESPN senza chiave, oppure API-Football con chiave | Gemini o OpenAI con chiave lato server | `Avvia Football Engine - Live.command` oppure `npm start` |
 | **File offline** | Snapshot reale ESPN o dati demo | Spenti (sola baseline statistica) | `Football Engine v1.9.0 - Live offline.html` / `- Demo offline.html` |
 
@@ -50,7 +50,7 @@ Tutto gira sul telefono, senza server: dati ESPN in diretta, motore completo, ag
 
 1. Apri https://flleone93.github.io/football-engine/ in **Safari** su iPhone.
 2. Condividi → **Aggiungi alla schermata Home**.
-3. Apri l'app dall'icona → **Impostazioni**: scegli Gemini o OpenAI e incolla la chiave (resta solo sul telefono). Senza chiave funziona il motore statistico.
+3. Apri l'app dall'icona → **Impostazioni**: il provider consigliato e preselezionato è **Anthropic Claude** (Claude Opus 5.5); incolla la chiave creata su console.anthropic.com → API Keys (resta solo sul telefono). In alternativa Gemini o OpenAI. Senza chiave funziona il motore statistico.
 
 Funzioni specifiche dell'app:
 
@@ -80,15 +80,15 @@ Eseguito regolarmente (ad esempio ogni giorno con `Aggiorna snapshot live.comman
 
 Nell'Artifact gli agenti AI usano la capability `sample`: a ogni analisi Claude riceve gli stessi prompt, evidence pack e JSON Schema dei provider Gemini/OpenAI, e il backend applica la stessa validazione e gli stessi limiti. Al primo uso Claude chiede il consenso e l'utilizzo è a carico di chi visualizza. Se Claude non è disponibile resta la baseline statistica.
 
-## AI su Server: Gemini o OpenAI
+## AI su Server: Claude (consigliato), Gemini o OpenAI
 
 ```env
 AI_MODE=active
-AI_PROVIDER=gemini
-GEMINI_API_KEY=...
+AI_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-oppure `AI_PROVIDER=openai` con `OPENAI_API_KEY`. `AI_MODE=shadow` esegue gli agenti senza applicarne gli effetti. Dettagli in `GUIDA_AI_PROVIDER.md`.
+oppure `AI_PROVIDER=gemini` con `GEMINI_API_KEY`, o `AI_PROVIDER=openai` con `OPENAI_API_KEY`. `AI_MODE=shadow` esegue gli agenti senza applicarne gli effetti. Dettagli in `GUIDA_AI_PROVIDER.md`.
 
 ## Endpoint
 
@@ -112,7 +112,7 @@ oppure `AI_PROVIDER=openai` con `OPENAI_API_KEY`. `AI_MODE=shadow` esegue gli ag
 | `src/server.js` | API HTTP, sicurezza, rate limit, static con ETag |
 | `src/api.js` | Logica API condivisa tra server, file offline e Artifact |
 | `src/hybridEngine.js` | Pipeline baseline statistica + AI bounded |
-| `src/ai/*` | Agenti, schemi JSON, adapter Gemini/OpenAI/Claude, ledger costi |
+| `src/ai/*` | Agenti, schemi JSON, adapter Anthropic Claude (chiave), Gemini, OpenAI e Claude Artifact, ledger costi |
 | `src/prediction/*` | Motore deterministico e Top Picks |
 | `src/providers/*` | ESPN, API-Football, snapshot, demo |
 | `src/tracking/*` | Registro previsioni, risultati, metriche post-partita |
@@ -126,7 +126,7 @@ oppure `AI_PROVIDER=openai` con `OPENAI_API_KEY`. `AI_MODE=shadow` esegue gli ag
 npm test
 ```
 
-48 test (incluso il controllo della build iPhone: CSP, manifest, icone, nessuna chiave nei file pubblicati): probabilità, mercati, H2H, Top Picks, quality gate, provenienza, isolamento dei payload AI, adapter Gemini/OpenAI/Claude (sei agenti end-to-end con sampler simulato e fallback su rifiuto), deduplicazione, knockout, guardrail, costi, metriche Brier/log loss/RPS, registro persistente, risultato al 90', quote ESPN e snapshot.
+53 test (incluso l'adapter Anthropic Claude con richiesta, errori e pipeline dei sei agenti; incluso il controllo della build iPhone: CSP, manifest, icone, nessuna chiave nei file pubblicati): probabilità, mercati, H2H, Top Picks, quality gate, provenienza, isolamento dei payload AI, adapter Gemini/OpenAI/Claude (sei agenti end-to-end con sampler simulato e fallback su rifiuto), deduplicazione, knockout, guardrail, costi, metriche Brier/log loss/RPS, registro persistente, risultato al 90', quote ESPN e snapshot.
 
 ## Limiti Dichiarati
 

@@ -24,19 +24,21 @@ export function buildConfig(env = {}) {
     return allowed.includes(value) ? value : fallback;
   };
 
-  const aiProvider = choice('AI_PROVIDER', 'gemini', ['openai', 'gemini', 'claude']);
-  const aiProviderPrefix = { gemini: 'GEMINI', openai: 'OPENAI', claude: 'CLAUDE' }[aiProvider];
+  const aiProvider = choice('AI_PROVIDER', 'gemini', ['anthropic', 'openai', 'gemini', 'claude']);
+  const aiProviderPrefix = { anthropic: 'ANTHROPIC', gemini: 'GEMINI', openai: 'OPENAI', claude: 'CLAUDE' }[aiProvider];
   const demoMode = bool('DEMO_MODE', true);
   const dataProvider = demoMode ? 'demo' : choice('DATA_PROVIDER', env.API_FOOTBALL_KEY ? 'api-football' : 'espn', ['api-football', 'espn']);
   const providerText = (suffix, fallback) => text(`AI_MODEL_${suffix}`, text(`${aiProviderPrefix}_MODEL_${suffix}`, fallback));
   // Il provider `claude` non usa chiavi: le chiamate passano dal runtime Artifact di claude.ai (capability `sample`).
-  const selectedAiKey = { gemini: text('GEMINI_API_KEY'), openai: text('OPENAI_API_KEY'), claude: '' }[aiProvider];
+  const selectedAiKey = { anthropic: text('ANTHROPIC_API_KEY'), gemini: text('GEMINI_API_KEY'), openai: text('OPENAI_API_KEY'), claude: '' }[aiProvider];
   const selectedAiBaseUrl = {
+    anthropic: text('ANTHROPIC_BASE_URL', 'https://api.anthropic.com/v1'),
     gemini: text('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
     openai: text('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
     claude: 'artifact-runtime'
   }[aiProvider];
   const modelDefaults = {
+    anthropic: { default: 'claude-opus-5-5', challenge: 'claude-opus-5-5', explanation: 'claude-opus-5-5' },
     gemini: { default: 'gemini-2.5-flash-lite', challenge: 'gemini-2.5-flash', explanation: 'gemini-2.5-flash-lite' },
     openai: { default: 'gpt-5.6-luna', challenge: 'gpt-5.6-terra', explanation: 'gpt-5.6-luna' },
     claude: { default: 'claude-tier-default', challenge: 'claude-tier-default', explanation: 'claude-tier-default' }
@@ -120,5 +122,9 @@ export function validateConfigObject(config) {
   if (config.ai.mode !== 'off' && config.ai.provider === 'gemini'
     && ![config.ai.modelDefault, config.ai.modelChallenge, config.ai.modelExplanation].every((model) => model.startsWith('gemini-'))) {
     throw new Error('I modelli Gemini devono usare identificativi gemini-* oppure AI_MODEL_* coerenti con AI_PROVIDER=gemini.');
+  }
+  if (config.ai.mode !== 'off' && config.ai.provider === 'anthropic'
+    && ![config.ai.modelDefault, config.ai.modelChallenge, config.ai.modelExplanation].every((model) => model.startsWith('claude-'))) {
+    throw new Error('Con AI_PROVIDER=anthropic i modelli devono usare identificativi claude-*.');
   }
 }

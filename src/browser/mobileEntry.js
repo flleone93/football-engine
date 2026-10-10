@@ -1,6 +1,6 @@
 // Entry point dell'app iPhone (PWA): tutto gira sul dispositivo.
 // Dati reali ESPN in diretta (CORS aperto), motore deterministico completo, agenti AI Gemini/OpenAI con la chiave
-// dell'utente salvata solo sul telefono, registro previsioni persistente in IndexedDB con regolazione automatica.
+// dell'utente salvata solo sul telefono (Anthropic Claude consigliato, oppure Gemini/OpenAI), registro previsioni persistente in IndexedDB con regolazione automatica.
 import { HybridAiOrchestrator } from '../ai/orchestrator.js';
 import { APP_VERSION, createApi } from '../api.js';
 import { TTLCache } from '../cache.js';
@@ -14,7 +14,8 @@ import { openIdbLedgerStorage } from './idbLedgerStorage.js';
 const SETTINGS_KEY = 'football-engine-settings-v1';
 const TRACK_KEY = 'football-engine-last-autotrack';
 const DEFAULT_SETTINGS = Object.freeze({
-  aiProvider: 'off',
+  // Claude è il provider consigliato: senza chiave gli agenti restano spenti e lavora il motore statistico.
+  aiProvider: 'anthropic',
   apiKey: '',
   aiMode: 'active',
   daysAhead: 5,
@@ -33,7 +34,7 @@ function readSettings() {
 
 function saveSettings(next) {
   const clean = {
-    aiProvider: ['off', 'gemini', 'openai'].includes(next.aiProvider) ? next.aiProvider : 'off',
+    aiProvider: ['off', 'anthropic', 'gemini', 'openai'].includes(next.aiProvider) ? next.aiProvider : 'off',
     apiKey: String(next.apiKey || '').trim(),
     aiMode: ['active', 'shadow'].includes(next.aiMode) ? next.aiMode : 'active',
     daysAhead: Math.min(7, Math.max(1, Number(next.daysAhead) || 5)),
@@ -47,6 +48,13 @@ function saveSettings(next) {
 
 const settings = readSettings();
 const aiEnabled = settings.aiProvider !== 'off' && settings.apiKey;
+// Stime di costo per milione di token del modello predefinito di ciascun provider (limite giornaliero in USD).
+const COSTS = {
+  anthropic: { input: '4', cached: '0.20', output: '20', timeout: '120000' },
+  gemini: { input: '0.30', cached: '0.03', output: '2.50', timeout: '45000' },
+  openai: { input: '0', cached: '0', output: '0', timeout: '60000' }
+};
+const cost = COSTS[settings.aiProvider] || COSTS.gemini;
 const config = buildConfig({
   DEMO_MODE: 'false',
   DATA_PROVIDER: 'espn',
@@ -54,17 +62,18 @@ const config = buildConfig({
   BOOKMAKER_NAME: 'DraftKings via ESPN',
   MATCH_DAYS_AHEAD: String(settings.daysAhead),
   AI_MODE: aiEnabled ? settings.aiMode : 'off',
-  AI_PROVIDER: settings.aiProvider === 'openai' ? 'openai' : 'gemini',
+  AI_PROVIDER: ['anthropic', 'openai'].includes(settings.aiProvider) ? settings.aiProvider : 'gemini',
+  ANTHROPIC_API_KEY: settings.aiProvider === 'anthropic' ? settings.apiKey : '',
   GEMINI_API_KEY: settings.aiProvider === 'gemini' ? settings.apiKey : '',
   OPENAI_API_KEY: settings.aiProvider === 'openai' ? settings.apiKey : '',
-  AI_REQUEST_TIMEOUT_MS: '45000',
+  AI_REQUEST_TIMEOUT_MS: cost.timeout,
   // Top Picks: ranking deterministico, gli agenti AI girano sulla singola analisi (costi contenuti).
   TOP_PICKS_AI_ENABLED: 'false',
   AI_DAILY_CALL_LIMIT: '120',
-  AI_DAILY_COST_LIMIT_USD: '1',
-  AI_INPUT_COST_PER_MILLION: '0.30',
-  AI_CACHED_INPUT_COST_PER_MILLION: '0.03',
-  AI_OUTPUT_COST_PER_MILLION: '2.50'
+  AI_DAILY_COST_LIMIT_USD: '3',
+  AI_INPUT_COST_PER_MILLION: cost.input,
+  AI_CACHED_INPUT_COST_PER_MILLION: cost.cached,
+  AI_OUTPUT_COST_PER_MILLION: cost.output
 });
 validateConfigObject(config);
 

@@ -76,7 +76,7 @@ async function loadMeta() {
   elements.modeBadge.textContent = state.meta.mode === 'demo' ? 'Demo' : snapshot ? 'Live · snapshot' : 'Live';
   elements.modeBadge.className = `status-dot ${state.meta.mode === 'demo' ? 'demo' : 'live'}`;
   const aiMode = state.meta.ai?.effectiveMode || 'off';
-  const aiProvider = { gemini: 'Gemini', openai: 'OpenAI', claude: 'Claude' }[state.meta.ai?.provider] || 'AI';
+  const aiProvider = { anthropic: 'Claude', gemini: 'Gemini', openai: 'OpenAI', claude: 'Claude' }[state.meta.ai?.provider] || 'AI';
   elements.aiModeBadge.textContent = aiMode === 'active' ? `AI ${aiProvider}` : aiMode === 'shadow' ? `AI ${aiProvider} · oss.` : 'AI off';
   elements.aiModeBadge.className = `status-pill ${aiMode === 'active' ? 'active' : aiMode === 'shadow' ? 'demo' : 'neutral'}`;
   elements.providerName.textContent = state.meta.provider;
@@ -835,10 +835,7 @@ if (deviceApp?.settings && elements.settingsTab) {
     event.preventDefault();
     const key = elements.settingsKey.value.trim();
     const provider = elements.settingsProvider.value;
-    if (provider !== 'off' && !key && !deviceApp.settings.get().hasKey) {
-      elements.settingsStatus.textContent = 'Inserisci la chiave API oppure scegli "Disattivati".';
-      return;
-    }
+    const missingKey = provider !== 'off' && !key && !deviceApp.settings.get().hasKey;
     try {
       deviceApp.settings.save({
         aiProvider: provider,
@@ -848,8 +845,10 @@ if (deviceApp?.settings && elements.settingsTab) {
         leagues: [...elements.settingsLeagues.querySelectorAll('input:checked')].map((input) => input.value),
         autoTrack: elements.settingsAutoTrack.checked
       });
-      elements.settingsStatus.textContent = 'Salvato. Riavvio dell’app…';
-      setTimeout(() => location.reload(), 400);
+      elements.settingsStatus.textContent = missingKey
+        ? 'Salvato. Gli agenti AI si attivano quando inserisci la chiave. Riavvio dell’app…'
+        : 'Salvato. Riavvio dell’app…';
+      setTimeout(() => location.reload(), missingKey ? 1200 : 400);
     } catch {
       elements.settingsStatus.textContent = 'Impossibile salvare: l’archiviazione del browser non è disponibile.';
     }

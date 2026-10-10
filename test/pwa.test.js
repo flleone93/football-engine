@@ -15,7 +15,7 @@ test('build app iPhone: file installabili, CSP restrittiva, nessun segreto', () 
   }
   const html = fs.readFileSync(path.join(out, 'index.html'), 'utf8');
   assert.match(html, /Content-Security-Policy/);
-  assert.match(html, /connect-src 'self' https:\/\/site\.api\.espn\.com/);
+  assert.match(html, /connect-src 'self' https:\/\/site\.api\.espn\.com https:\/\/api\.anthropic\.com/);
   assert.match(html, /apple-touch-icon/);
   assert.match(html, /viewport-fit=cover/);
   assert.doesNotMatch(html, /<script>(?!<\/script>)/, 'nessuno script inline: la CSP li bloccherebbe');
@@ -28,5 +28,5 @@ test('build app iPhone: file installabili, CSP restrittiva, nessun segreto', () 
   const sw = fs.readFileSync(path.join(out, 'sw.js'), 'utf8');
   assert.doesNotMatch(sw, /__BUILD_VERSION__/);
   const everything = fs.readdirSync(out).filter((file) => /\.(js|html|json)$/.test(file)).map((file) => fs.readFileSync(path.join(out, file), 'utf8')).join('\n');
-  assert.doesNotMatch(everything, /AIza[0-9A-Za-z_-]{20,}|sk-[A-Za-z0-9]{20,}/, 'nessuna chiave API nei file pubblicati');
+  assert.doesNotMatch(everything, /AIza[0-9A-Za-z_-]{20,}|sk-[A-Za-z0-9]{20,}|sk-ant-[A-Za-z0-9_-]{20,}/, 'nessuna chiave API nei file pubblicati');
 });

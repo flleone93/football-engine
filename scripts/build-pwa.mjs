@@ -25,7 +25,7 @@ const csp = [
   "script-src 'self'",
   "style-src 'self'",
   "img-src 'self' data:",
-  "connect-src 'self' https://site.api.espn.com https://generativelanguage.googleapis.com https://api.openai.com",
+  "connect-src 'self' https://site.api.espn.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api.openai.com",
   "worker-src 'self'",
   "manifest-src 'self'",
   "object-src 'none'",

@@ -1,4 +1,4 @@
-# Guida AI: Gemini, OpenAI e Claude
+# Guida AI: Claude, Gemini e OpenAI
 
 Release `1.9.0`.
 
@@ -6,11 +6,20 @@ Il progetto supporta un solo provider AI attivo alla volta, selezionato con `AI_
 
 | Provider | Dove funziona | Chiave | Modelli |
 |---|---|---|---|
+| `anthropic` **(consigliato)** | App iPhone, server Node / Render | `ANTHROPIC_API_KEY` (sull'iPhone: Impostazioni) | Claude Opus 5.5 per tutti gli agenti |
 | `gemini` | Server Node / Render | `GEMINI_API_KEY` lato server | Flash-Lite agenti, Flash challenge |
 | `openai` | Server Node / Render | `OPENAI_API_KEY` lato server | configurabili |
 | `claude` | Artifact claude.ai | Nessuna: capability `sample` del runtime Artifact | tier `default` della piattaforma |
 
 Nessuna chiave viene mai inviata al browser. Prompt, evidence pack, JSON Schema, validazione e guardrail sono identici per i tre provider.
+
+## Anthropic Claude con chiave (consigliato)
+
+1. Apri https://console.anthropic.com → **API Keys** → **Create Key** e imposta un limite di spesa nell'organizzazione.
+2. iPhone: app → **Impostazioni** → Provider **Anthropic Claude (consigliato)** → incolla la chiave → **Salva**. Server: `AI_PROVIDER=anthropic` e `ANTHROPIC_API_KEY=sk-ant-...`.
+3. Ogni agente chiama `POST https://api.anthropic.com/v1/messages` con modello `claude-opus-5-5`, thinking adattivo, `output_config.effort` da `AI_REASONING_EFFORT` (default `low`) e `output_config.format` di tipo `json_schema`: la risposta è JSON garantito conforme allo schema dell'agente. I vincoli che l'API non accetta nello schema (minimi, massimi, lunghezze) sono rimossi prima dell'invio e verificati dal backend dopo la risposta.
+4. `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`): se i controlli di sicurezza rifiutano una richiesta, Anthropic la riesegue sul modello consigliato. Un rifiuto o una risposta troncata diventano errori tracciati (`anthropic_refusal`, `anthropic_max_tokens`) con fallback al motore statistico.
+5. Sull'iPhone la chiamata parte direttamente dal telefono (intestazione `anthropic-dangerous-direct-browser-access`): la chiave resta sul dispositivo e non passa da nessun server intermedio. Stima costi nell'app: 4 $ / 20 $ per milione di token in ingresso/uscita, limite interno 3 $ al giorno.
 
 ## Claude nell'Artifact
 
