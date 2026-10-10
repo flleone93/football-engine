@@ -1,6 +1,6 @@
 # Guida AI: Gemini, OpenAI e Claude
 
-Release `1.8.0`.
+Release `1.9.0`.
 
 Il progetto supporta un solo provider AI attivo alla volta, selezionato con `AI_PROVIDER`:
 
@@ -23,7 +23,7 @@ L'Artifact generato da `npm run build:live` (`dist/artifact/football-engine-live
 
 Il primo utilizzo mostra la richiesta di consenso di Claude; le chiamate usano l'account di chi visualizza. Un'analisi con tutti gli agenti richiede in genere da 30 secondi a 2 minuti. Se il consenso viene negato o Claude non è disponibile, ogni agente risulta `error` con codice `claude_<motivo>` e restano i numeri deterministici. Le Top Picks dell'Artifact usano solo il ranking deterministico, per non lanciare decine di chiamate.
 
-Aperto come file locale (`Football Engine v1.8.0 - Live offline.html`) il runtime Claude non esiste: l'AI risulta off.
+Aperto come file locale (`Football Engine v1.9.0 - Live offline.html`) il runtime Claude non esiste: l'AI risulta off.
 
 ## Server: Scelta Consigliata
 

@@ -1,6 +1,8 @@
 # Enterprise Football Prediction Engine
 
-Versione 1.8.0. Motore ibrido per l'analisi probabilistica delle partite di calcio con dati reali: baseline statistica deterministica, sei agenti AI con guardrail, Top Picks giornaliere, simulazione quote e validazione post-partita delle previsioni.
+Creata da **Leone Francesco**.
+
+Versione 1.9.0. Motore ibrido per l'analisi probabilistica delle partite di calcio con dati reali: baseline statistica deterministica, sei agenti AI con guardrail, Top Picks giornaliere, simulazione quote e validazione post-partita delle previsioni.
 
 ## Quattro modi di usarlo
 
@@ -9,7 +11,16 @@ Versione 1.8.0. Motore ibrido per l'analisi probabilistica delle partite di calc
 | **Artifact claude.ai** | Snapshot reale ESPN (155 partite in 15 competizioni al 10/10/2026) | Eseguiti da **Claude** nel runtime Artifact, senza chiavi | [claude.ai/artifact/TEoB1n8Mkv8aDVSH4GHnEU](https://claude.ai/artifact/TEoB1n8Mkv8aDVSH4GHnEU) (privato finché non lo condividi) |
 | **App iPhone** | **Live** ESPN scaricato dal telefono | Gemini o OpenAI con la chiave salvata sul telefono | [flleone93.github.io/football-engine](https://flleone93.github.io/football-engine/) → Safari → Condividi → Aggiungi alla schermata Home |
 | **Server locale / Render** | **Live** ESPN senza chiave, oppure API-Football con chiave | Gemini o OpenAI con chiave lato server | `Avvia Football Engine - Live.command` oppure `npm start` |
-| **File offline** | Snapshot reale ESPN o dati demo | Spenti (sola baseline statistica) | `Football Engine v1.8.0 - Live offline.html` / `- Demo offline.html` |
+| **File offline** | Snapshot reale ESPN o dati demo | Spenti (sola baseline statistica) | `Football Engine v1.9.0 - Live offline.html` / `- Demo offline.html` |
+
+## Novità 1.9.0: interfaccia per iPhone
+
+- Barra superiore compatta con stato (Live, AI, 18+) e firma **"Creata da Leone Francesco"** in alto a destra.
+- Su telefono le sezioni (Partite, Top, Storico, Impostazioni) sono in una barra in basso, come nelle app iOS; su desktop restano in alto.
+- Elenco partite → dettaglio con tasto indietro; senza AI l'analisi parte al tocco, con AI si sceglie tra analisi con agenti o rapida.
+- Risultato riorganizzato: scheda partita con barra 1X2 a colori, scheda "Indicazione" con probabilità, quota, edge e confidenza, sei metriche chiave, poi sezioni richiudibili (mercati, spiegazione AI, risultati esatti, andamento, fattori, scenari, modelli, rischi, dati, processo multi-agente, audit).
+- Top del giorno come schede da toccare; Storico con elenchi leggibili su schermo stretto; Impostazioni in stile iOS con scheda "Informazioni".
+- Pulsanti e campi da almeno 44 px, testo 16 px nei campi (niente zoom automatico di Safari), margini per notch e barra home, export tramite il foglio di condivisione di iPhone.
 
 ## Architettura
 

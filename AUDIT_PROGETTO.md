@@ -2,7 +2,7 @@
 
 ## Esito
 
-Release verificata: `1.8.0`.
+Release verificata: `1.9.0`.
 
 Il progetto è una base eseguibile e pubblicabile per un motore ibrido di previsione calcistica. Il percorso demo funziona senza credenziali; il percorso live mantiene le chiavi nel backend; i calcoli restano deterministici e gli agenti AI possono solo proporre correzioni limitate e tracciate.
 
@@ -28,6 +28,19 @@ Il progetto è una base eseguibile e pubblicabile per un motore ibrido di previs
 | Alta | Lo schema condiviso contiene vincoli non supportati dal subset JSON Schema Gemini | Aggiunta conversione deterministica dello schema e validazione applicativa post-risposta |
 | Alta | Interactions API conserva lo stato per impostazione predefinita | Ogni richiesta Gemini imposta esplicitamente `store=false` |
 
+## Rilievi Chiusi nella 1.9.0
+
+| Priorità | Rilievo | Correzione |
+|---|---|---|
+| Alta | Su iPhone l'intestazione occupava mezzo schermo e le schede si sovrapponevano ("PERFORMANCEIMPOSTAZIONI") | Barra superiore compatta; schede in una barra inferiore fissa con icone e margine per la barra home |
+| Alta | Elenco partite e analisi impilati: il calendario iniziava a metà della seconda schermata | Navigazione elenco → dettaglio con tasto indietro; il tocco sulla scheda "Partite" riporta all'elenco |
+| Media | Risultato dell'analisi troppo lungo e con tabelle larghe | Scheda Indicazione in evidenza, mercati come elenco con barre, sezioni secondarie richiudibili, tabelle scorrevoli |
+| Media | Firma dell'autore assente | "Creata da Leone Francesco" in alto a destra, nella scheda Informazioni, nel piè di pagina e nei metadati |
+| Media | La barra inferiore finiva in alto su Safari | Su telefono la barra superiore non usa `backdrop-filter`, che rendeva la barra superiore il riferimento degli elementi fissi |
+| Bassa | Stampa non disponibile nelle web app a schermo intero | Pulsante nascosto in modalità app; export tramite foglio di condivisione iOS |
+
+Verifiche: 48 test superati; interfaccia controllata a 390×844 (iPhone) e 1024 px senza scorrimento orizzontale; elenco, dettaglio, Top, Storico e Impostazioni provati con dati reali ESPN.
+
 ## Rilievi Chiusi nella 1.8.0
 
 | Priorità | Rilievo | Correzione |
@@ -38,7 +51,7 @@ Il progetto è una base eseguibile e pubblicabile per un motore ibrido di previs
 | Media | Market Movement sempre escluso | Attivo quando la fonte fornisce le quote di apertura; solo informativo, non altera le probabilità |
 | Media | Storico reale assente | Registro `data/live-predictions.jsonl` alimentato a ogni snapshot e regolato con i risultati ESPN |
 | Media | Identificativi con punto rifiutati (`espn:uefa.europa.conf:…`) | Validatore `fixtureId` esteso al carattere `.` |
-| Bassa | Nomi di file e cartelle non coerenti tra versioni | Cartella `Enterprise Football Prediction Engine v1.8.0`, file versionati, release precedenti in `archivio/` |
+| Bassa | Nomi di file e cartelle non coerenti tra versioni | Cartella `Enterprise Football Prediction Engine v1.9.0`, file versionati, release precedenti in `archivio/` |
 
 ## Verifica sui Dati Reali (10/10/2026)
 

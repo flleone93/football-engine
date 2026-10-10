@@ -1,5 +1,7 @@
 # Enterprise Football Prediction Engine - Handoff Tecnico per Claude
 
+Autore: Leone Francesco.
+
 ## Finalità
 
 Costruire un sistema enterprise per analisi predittiva calcistica:
@@ -17,7 +19,7 @@ Il sistema produce analisi di singole partite e ranking Top 5/6/7 giornalieri co
 
 ## Stato Attuale
 
-Versione: `1.8.0`
+Versione: `1.9.0`
 
 Stack:
 

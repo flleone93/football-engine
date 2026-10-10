@@ -18,8 +18,8 @@ Nella cartella principale:
 
 - `Avvia Football Engine - Live.command`: server locale con dati reali ESPN, nessuna chiave;
 - `Avvia Football Engine - Demo.command`: server locale con dati dimostrativi;
-- `Aggiorna snapshot live.command`: scarica dati reali aggiornati, regola le previsioni passate e rigenera `Football Engine v1.8.0 - Live offline.html` e il file dell'Artifact;
-- `Football Engine v1.8.0 - Live offline.html` e `- Demo offline.html`: si aprono nel browser senza Node.
+- `Aggiorna snapshot live.command`: scarica dati reali aggiornati, regola le previsioni passate e rigenera `Football Engine v1.9.0 - Live offline.html` e il file dell'Artifact;
+- `Football Engine v1.9.0 - Live offline.html` e `- Demo offline.html`: si aprono nel browser senza Node.
 
 Al primo avvio macOS può chiedere conferma: tasto destro sul file, `Apri`.
 
@@ -152,7 +152,7 @@ curl http://localhost:8080/api/usage
 
 ## 5. Attivare AI sui Numeri
 
-Il pacchetto 1.8.0 è predisposto per `active`; tutti gli aggiustamenti restano comunque soggetti ai seguenti limiti deterministici:
+Il pacchetto 1.9.0 è predisposto per `active`; tutti gli aggiustamenti restano comunque soggetti ai seguenti limiti deterministici:
 
 ```env
 AI_MODE=active
