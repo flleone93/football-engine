@@ -1,5 +1,4 @@
 export const AGENT_IDS = Object.freeze([
-  'player_availability_impact',
   'tactical_context',
   'news_intelligence',
   'competition_context',
@@ -67,21 +66,13 @@ export const explanationSchema = {
 };
 
 export const AGENT_SPECS = Object.freeze({
-  player_availability_impact: {
-    label: 'Player Availability & Impact Agent',
-    model: 'default',
-    schema: assessmentSchema,
-    schemaName: 'player_availability_impact_output',
-    maxXgDelta: 'maxPlayerXgDelta',
-    prompt: 'Valuta solo disponibilita, infortuni, probabili titolarita e impatto dei giocatori usando esclusivamente i dati ricevuti. Non inventare formazioni, notizie o diagnosi. Se i dati non bastano, dichiara insufficient_data.'
-  },
   tactical_context: {
-    label: 'Tactical Context Agent',
+    label: 'Lineups & Tactical Context Agent',
     model: 'default',
     schema: assessmentSchema,
     schemaName: 'tactical_context_output',
     maxXgDelta: 'maxTacticalXgDelta',
-    prompt: 'Valuta compatibilita tattica, ritmo e matchup collettivi solo dai dati disponibili. Non attribuire moduli o piani gara non presenti nei dati; segnala le ipotesi non supportate.'
+    prompt: 'Valuta formazioni e indisponibili quando presenti, compatibilita tattica, ritmo, forma e condizioni meteo solo dai dati ricevuti. Il meteo e informativo: segnala solo effetti plausibili e prudenti. Non inventare formazioni, diagnosi, moduli o piani gara; se i dati non bastano dichiara insufficient_data.'
   },
   news_intelligence: {
     label: 'News Intelligence Agent',

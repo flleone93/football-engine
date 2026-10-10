@@ -6,7 +6,7 @@ import { createStructuredAiClient } from './structuredClient.js';
 import { AiUsageLedger } from './usageLedger.js';
 import { assertJsonSchema } from './schemaValidator.js';
 
-const QUALITATIVE_AGENT_IDS = ['player_availability_impact', 'tactical_context', 'news_intelligence', 'competition_context'];
+const QUALITATIVE_AGENT_IDS = ['tactical_context', 'news_intelligence', 'competition_context'];
 
 function modelFor(agentId, aiConfig) {
   const spec = AGENT_SPECS[agentId];
@@ -70,13 +70,13 @@ function observedAgentData(bundle) {
     lineups: lineupsAvailable && hasLineupContent(bundle.lineups) ? bundle.lineups : null,
     odds: oddsAvailable ? bundle.odds : null,
     news: Array.isArray(bundle.news) ? bundle.news.slice(0, 12) : [],
-    competitionRules: bundle.competitionRules || null
+    competitionRules: bundle.competitionRules || null,
+    weather: sourceAvailable(bundle, 'weather', Boolean(bundle.weather)) ? (bundle.weather || null) : null
   };
 }
 
 const AGENT_CATEGORIES = Object.freeze({
-  player_availability_impact: new Set(['fixture', 'lineups', 'injury', 'recent_form', 'season_statistics']),
-  tactical_context: new Set(['fixture', 'recent_form', 'season_statistics']),
+  tactical_context: new Set(['fixture', 'lineups', 'injury', 'recent_form', 'season_statistics', 'weather']),
   news_intelligence: new Set(['fixture', 'news']),
   competition_context: new Set(['fixture', 'competition_rules', 'recent_form']),
   challenge_bias: null,
@@ -91,7 +91,8 @@ const OBSERVED_CATEGORY = Object.freeze({
   lineups: 'lineups',
   odds: 'market_odds',
   news: 'news',
-  competitionRules: 'competition_rules'
+  competitionRules: 'competition_rules',
+  weather: 'weather'
 });
 
 function scopedSourceSnapshot(bundle, categories) {
@@ -125,6 +126,7 @@ function buildEvidenceCatalog(bundle, data, agentId) {
   for (const [index, injury] of (data.injuries?.away || []).entries()) add(`injury.away.${index}`, 'injury', injury, `injuries.away[${index}]`);
   for (const [index, news] of data.news.entries()) add(`news.${index}`, 'news', news, `news[${index}]`);
   add('competition.rules', 'competition_rules', data.competitionRules, 'competitionRules');
+  add('weather', 'weather', data.weather, 'weather');
   add('odds.snapshot', 'market_odds', data.odds, 'odds');
   return entries;
 }
@@ -150,6 +152,7 @@ export function buildAgentEvidencePack(bundle, baseline, agentId) {
     } : null,
     predictionProvider: detailedBaseline ? (bundle.prediction || null) : null,
     news: include('news') ? data.news : [],
+    weather: include('weather') ? data.weather : null,
     competitionRules: include('competition_rules') ? data.competitionRules : null,
     statisticalBaseline: {
       generatedAt: baseline.generatedAt,
@@ -164,13 +167,6 @@ export function buildAgentEvidencePack(bundle, baseline, agentId) {
 
 function hasUsefulData(agentId, bundle) {
   if (agentId === 'news_intelligence') return Array.isArray(bundle.news) && bundle.news.length > 0;
-  if (agentId === 'player_availability_impact') return Boolean(
-    bundle.lineups?.confirmed
-    || bundle.lineups?.home?.length
-    || bundle.lineups?.away?.length
-    || bundle.injuries?.home?.length
-    || bundle.injuries?.away?.length
-  );
   if (agentId === 'competition_context') return Boolean(bundle.competitionRules || bundle.fixture?.league);
   return Boolean(bundle.seasonStats?.home || bundle.seasonStats?.away || bundle.recentForm?.home || bundle.recentForm?.away);
 }

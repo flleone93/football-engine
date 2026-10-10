@@ -46,7 +46,8 @@ export function publicSourceSnapshot(bundle) {
       lineups: available('lineups', Boolean(bundle.lineups?.confirmed)) && Boolean(bundle.lineups?.confirmed),
       odds: available('odds', Boolean(bundle.odds?.values)) && Boolean(bundle.odds?.values && Object.keys(bundle.odds.values).length),
       news: Array.isArray(bundle.news) && bundle.news.length > 0,
-      competitionRules: Boolean(bundle.competitionRules)
+      competitionRules: Boolean(bundle.competitionRules),
+      weather: Boolean(bundle.weather)
     },
     timestamps: {
       odds: bundle.odds?.updatedAt || null,

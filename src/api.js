@@ -278,7 +278,7 @@ export function createApi({ config, provider, aiOrchestrator, analysisCache, led
           explanation: config.ai.modelExplanation
         },
         agentsNote: config.ai.provider === 'claude' ? 'Agenti eseguiti da Claude nel runtime Artifact, con il consenso e l’utilizzo dell’utente che visualizza.' : null,
-        agents: ['Player Availability & Impact', 'Tactical Context', 'News Intelligence', 'Competition Context', 'Challenge & Bias Detection', 'Final Explanation'],
+        agents: ['Lineups & Tactical Context', 'News Intelligence', 'Competition Context', 'Challenge & Bias Detection', 'Final Explanation'],
         maxProbabilityShiftPp: config.ai.maxProbabilityShiftPp,
         maxTotalXgDelta: config.ai.maxTotalXgDelta,
         duplicateEvidenceScale: config.ai.duplicateEvidenceScale,
