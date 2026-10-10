@@ -28,6 +28,7 @@ Stack:
 - Dockerfile;
 - Render Blueprint;
 - provider dati: ESPN pubblico senza chiave (default), API-Football con chiave, snapshot incorporato, demo;
+- app iPhone (PWA) generata da `npm run build:pwa`, pubblicata su https://flleone93.github.io/football-engine/ tramite GitHub Actions (`src/browser/mobileEntry.js`, `src/browser/idbLedgerStorage.js`, `mobile/sw.js`);
 - Artifact claude.ai generato da `npm run build:live` con agenti AI eseguiti da Claude (capability `sample`);
 - adapter AI: Gemini Interactions API, OpenAI Responses API (Structured Outputs) oppure Claude nel runtime Artifact.
 

@@ -2,11 +2,12 @@
 
 Versione 1.8.0. Motore ibrido per l'analisi probabilistica delle partite di calcio con dati reali: baseline statistica deterministica, sei agenti AI con guardrail, Top Picks giornaliere, simulazione quote e validazione post-partita delle previsioni.
 
-## Tre modi di usarlo
+## Quattro modi di usarlo
 
 | Modo | Dati | Agenti AI | Come si apre |
 |---|---|---|---|
 | **Artifact claude.ai** | Snapshot reale ESPN (155 partite in 15 competizioni al 10/10/2026) | Eseguiti da **Claude** nel runtime Artifact, senza chiavi | [claude.ai/artifact/TEoB1n8Mkv8aDVSH4GHnEU](https://claude.ai/artifact/TEoB1n8Mkv8aDVSH4GHnEU) (privato finché non lo condividi) |
+| **App iPhone** | **Live** ESPN scaricato dal telefono | Gemini o OpenAI con la chiave salvata sul telefono | [flleone93.github.io/football-engine](https://flleone93.github.io/football-engine/) → Safari → Condividi → Aggiungi alla schermata Home |
 | **Server locale / Render** | **Live** ESPN senza chiave, oppure API-Football con chiave | Gemini o OpenAI con chiave lato server | `Avvia Football Engine - Live.command` oppure `npm start` |
 | **File offline** | Snapshot reale ESPN o dati demo | Spenti (sola baseline statistica) | `Football Engine v1.8.0 - Live offline.html` / `- Demo offline.html` |
 
@@ -31,6 +32,25 @@ npm start
 Apri `http://localhost:8080`. Il profilo predefinito usa dati reali ESPN (`DEMO_MODE=false`, `DATA_PROVIDER=espn`) e non richiede chiavi. Senza chiave AI il motore deterministico funziona da solo.
 
 Dati dimostrativi: `DEMO_MODE=true`. API-Football: `DATA_PROVIDER=api-football` e `API_FOOTBALL_KEY=...`.
+
+## App iPhone (PWA)
+
+Tutto gira sul telefono, senza server: dati ESPN in diretta, motore completo, agenti AI con la propria chiave, registro previsioni nell'IndexedDB del dispositivo.
+
+1. Apri https://flleone93.github.io/football-engine/ in **Safari** su iPhone.
+2. Condividi → **Aggiungi alla schermata Home**.
+3. Apri l'app dall'icona → **Impostazioni**: scegli Gemini o OpenAI e incolla la chiave (resta solo sul telefono). Senza chiave funziona il motore statistico.
+
+Funzioni specifiche dell'app:
+
+- competizioni e giorni da scansionare configurabili;
+- tracciamento automatico ogni 6 ore all'apertura: acquisisce i risultati e registra le previsioni pre-partita delle 48 ore successive (solo motore deterministico, nessun costo AI);
+- storico iniziale importato dal registro del Mac (`data/live-predictions.jsonl`);
+- funzionamento offline con gli ultimi dati scaricati; aggiornamento automatico dell'app a ogni pubblicazione.
+
+Limiti: iOS non esegue web app in background, quindi dati e risultati si aggiornano quando l'app viene aperta. Lo storico vive sul telefono: eliminare l'app dalla Home o i dati del sito lo cancella (usare `Esporta CSV` per conservarlo).
+
+Pubblicazione: repository pubblico https://github.com/flleone93/football-engine. Ogni push su `main` esegue i test, genera `dist/pwa` (`npm run build:pwa`) e lo pubblica su GitHub Pages (`.github/workflows/pages.yml`).
 
 ## Snapshot Live e Artifact
 
@@ -95,7 +115,7 @@ oppure `AI_PROVIDER=openai` con `OPENAI_API_KEY`. `AI_MODE=shadow` esegue gli ag
 npm test
 ```
 
-47 test: probabilità, mercati, H2H, Top Picks, quality gate, provenienza, isolamento dei payload AI, adapter Gemini/OpenAI/Claude (sei agenti end-to-end con sampler simulato e fallback su rifiuto), deduplicazione, knockout, guardrail, costi, metriche Brier/log loss/RPS, registro persistente, risultato al 90', quote ESPN e snapshot.
+48 test (incluso il controllo della build iPhone: CSP, manifest, icone, nessuna chiave nei file pubblicati): probabilità, mercati, H2H, Top Picks, quality gate, provenienza, isolamento dei payload AI, adapter Gemini/OpenAI/Claude (sei agenti end-to-end con sampler simulato e fallback su rifiuto), deduplicazione, knockout, guardrail, costi, metriche Brier/log loss/RPS, registro persistente, risultato al 90', quote ESPN e snapshot.
 
 ## Limiti Dichiarati
 

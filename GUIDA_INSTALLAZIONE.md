@@ -42,6 +42,23 @@ npm run build:live
 
 genera `dist/artifact/football-engine-live.html`: è il contenuto da pubblicare come Artifact con le capability `sample` (agenti AI eseguiti da Claude) e `downloads` (export JSON/CSV). Per aggiornarlo: rigenerare lo snapshot e chiedere a Claude di ripubblicare lo stesso file sullo stesso link.
 
+## 1e. App iPhone
+
+Indirizzo: https://flleone93.github.io/football-engine/ (Safari → Condividi → Aggiungi alla schermata Home). Impostazioni dell'app: provider AI e chiave, modalità active/shadow, giorni e competizioni, tracciamento automatico.
+
+Aggiornare l'app dopo una modifica al codice:
+
+```bash
+npm test
+git add -A
+git commit -m "Descrizione della modifica"
+git push
+```
+
+GitHub Actions esegue i test e ripubblica; sul telefono la nuova versione arriva alla successiva apertura. Per provarla in locale: `npm run build:pwa` e servire `dist/pwa` con un server statico.
+
+Per aggiornare lo storico iniziale incluso nell'app, eseguire `npm run build:live` (aggiorna `data/live-predictions.jsonl`) e poi committare e pushare il file.
+
 ## 2. Installazione Locale in Demo
 
 ```bash
