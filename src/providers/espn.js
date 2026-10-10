@@ -2,6 +2,7 @@
 // notizie, quote DraftKings con apertura/attuale). Nessuna dipendenza Node: usato anche dallo script snapshot.
 import { TTLCache } from '../cache.js';
 import { addDays, round } from '../utils.js';
+import { WeatherService } from './weather.js';
 
 const BASE = 'https://site.api.espn.com/apis';
 
@@ -190,15 +191,24 @@ function headToHead(seasonSeries, homeId, kickoff) {
   return matches ? { matches, home, draw, away, homeGoalsAverage: round(homeGoals / matches, 3), awayGoalsAverage: round(awayGoals / matches, 3) } : null;
 }
 
-function relevantNews(articles, fixture) {
+function relevantNews(leagueArticles, teamArticles, fixture) {
   const names = [fixture.home.name, fixture.away.name].map((name) => name.toLowerCase());
   const keys = names.flatMap((name) => [name, ...name.split(/\s+/).filter((part) => part.length >= 5)]);
-  return (articles || [])
+  const teamIds = new Set([String(fixture.home.id), String(fixture.away.id)]);
+  const mentions = (article) => {
+    const text = `${article.headline || ''} ${article.description || ''}`.toLowerCase();
+    return keys.some((key) => text.includes(key));
+  };
+  const taggedTeam = (article) => (article.categories || []).some((category) => category.type === 'team' && teamIds.has(String(category.teamId ?? category.team?.id)));
+  const seen = new Set();
+  return [...teamArticles.filter((article) => taggedTeam(article) || mentions(article)), ...leagueArticles.filter(mentions)]
     .filter((article) => {
-      const text = `${article.headline || ''} ${article.description || ''}`.toLowerCase();
-      return keys.some((key) => text.includes(key));
+      const key = article.headline || '';
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
     })
-    .slice(0, 6)
+    .slice(0, 8)
     .map((article) => ({
       title: article.headline || '',
       summary: article.description || '',
@@ -217,12 +227,13 @@ function lineupsFrom(rosters) {
 }
 
 export class EspnProvider {
-  constructor(config = {}, { leagues = ESPN_LEAGUES, fetchImpl = globalThis.fetch?.bind(globalThis) } = {}) {
+  constructor(config = {}, { leagues = ESPN_LEAGUES, fetchImpl = globalThis.fetch?.bind(globalThis), weather = null } = {}) {
     this.config = config;
     this.mode = 'live';
     this.label = 'ESPN (dati pubblici)';
     this.leagues = leagues;
     this.fetch = fetchImpl;
+    this.weather = weather || new WeatherService({ fetchImpl });
     this.cache = new TTLCache(config.cacheTtlMs || 900000, 5000);
     this.fixtureIndex = new Map();
     this.timezone = config.timezone || 'Europe/Rome';
@@ -362,7 +373,24 @@ export class EspnProvider {
     sourceStatus.injuries = { available: false, error: 'Elenco indisponibili non fornito dalla fonte pubblica.' };
     sourceStatus.prediction = { available: false, error: 'Nessuna previsione esterna nella fonte pubblica.' };
 
-    const news = relevantNews(summary.news?.articles, fixture);
+    const teamArticles = (await Promise.all([fixture.home.id, fixture.away.id].map(async (teamId) => {
+      try {
+        const payload = await this.request(`/site/v2/sports/soccer/${decoded.slug}/news?team=${teamId}`, { force });
+        return payload.articles || [];
+      } catch {
+        return [];
+      }
+    }))).flat();
+    const news = relevantNews(summary.news?.articles || [], teamArticles, fixture);
+
+    let weather = null;
+    try {
+      weather = await this.weather.forecastAt({ venue: fixture.venue, kickoff: fixture.kickoff });
+      sourceStatus.weather = { available: Boolean(weather), error: weather ? null : 'Meteo non disponibile: città non riconosciuta o partita oltre 16 giorni.' };
+    } catch {
+      sourceStatus.weather = { available: false, error: 'Meteo: fonte non raggiungibile.' };
+    }
+    sourceStatus.referee = { available: Boolean(fixture.referee), error: fixture.referee ? null : 'Arbitro non fornito dalla fonte gratuita.' };
     return {
       fixture,
       homeStats,
@@ -375,6 +403,7 @@ export class EspnProvider {
       odds,
       lineups,
       news,
+      weather,
       standingsContext: {
         home: homeStats ? { rank: homeStats.rank, points: homeStats.points, played: homeStats.played } : null,
         away: awayStats ? { rank: awayStats.rank, points: awayStats.points, played: awayStats.played } : null

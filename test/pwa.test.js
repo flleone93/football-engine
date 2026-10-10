@@ -15,7 +15,7 @@ test('build app iPhone: file installabili, CSP restrittiva, nessun segreto', () 
   }
   const html = fs.readFileSync(path.join(out, 'index.html'), 'utf8');
   assert.match(html, /Content-Security-Policy/);
-  assert.match(html, /connect-src 'self' https:\/\/site\.api\.espn\.com https:\/\/api\.anthropic\.com/);
+  assert.match(html, /connect-src 'self' https:\/\/site\.api\.espn\.com https:\/\/geocoding-api\.open-meteo\.com https:\/\/api\.open-meteo\.com https:\/\/api\.anthropic\.com/);
   assert.match(html, /apple-touch-icon/);
   assert.match(html, /viewport-fit=cover/);
   assert.doesNotMatch(html, /<script>(?!<\/script>)/, 'nessuno script inline: la CSP li bloccherebbe');
