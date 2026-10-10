@@ -2,6 +2,8 @@ import { asNumber, clamp, mean, normalizeProbabilities, round, standardDeviation
 import { blendOutcomes, calibrateMatrixToOutcomes, devigOdds, exactScores, marketsFromMatrix, outcomesFromMatrix, scoreMatrix, totalGoalsFromOverProbability } from './probability.js';
 import { runMonteCarlo } from './monteCarlo.js';
 import { buildRecommendation } from './recommendation.js';
+import { formFromRecent, oddsMovementFromOdds, scoreGridFromMatrix } from './presentation.js';
+import { weatherSummary } from '../providers/weather.js';
 
 function oddsProbability(odds, keys) {
   if (!odds?.values) return null;
@@ -263,7 +265,6 @@ function workflowAgents(bundle, quality, neutral, ai = null) {
     const active = agent.status === 'completed' || agent.status === 'insufficient_data';
     return [active, `${agent.status}${agent.cacheHit ? ' · cache' : ''}${agent.errorCode ? ` · ${agent.errorCode}` : ''}`];
   };
-  const [playerActive, playerNote] = aiState('player_availability_impact', 'AI non eseguita o dati indisponibili.');
   const [tacticalActive, tacticalNote] = aiState('tactical_context', 'AI non eseguita o dati tattici insufficienti.');
   const [newsActive, newsNote] = aiState('news_intelligence', 'Nessun feed editoriale verificabile configurato.');
   const [competitionActive, competitionNote] = aiState('competition_context', 'Regolamento strutturato non disponibile.');
@@ -275,20 +276,17 @@ function workflowAgents(bundle, quality, neutral, ai = null) {
     ['Data Quality', true, `Qualità rilevata ${quality.score}/100; dati mancanti separati dalle inferenze.`],
     ['Entity Resolution', true, 'Identificativi univoci di squadre, competizione e fixture.'],
     ['Feature Engineering', true, 'Forma, medie goal, riposo, assenze e fattore campo.'],
-    ['Player Availability & Impact AI', playerActive, playerNote],
     ['Squad Strength', Boolean(bundle.homeStats && bundle.awayStats), 'Forza stagionale regredita verso la media.'],
-    ['Tactical Context AI', tacticalActive, tacticalNote],
+    ['Lineups & Tactical AI', tacticalActive, tacticalNote, null],
     ['Recent Form', Boolean(bundle.recentHome && bundle.recentAway), 'Ultime dieci gare e giorni di recupero.'],
     ['Home & Away', !neutral, neutral ? 'Disattivato: campo neutro selezionato.' : 'Medie specifiche casa/trasferta.'],
-    ['Weather & Pitch', false, 'Nessuna fonte meteo/geografica configurata.'],
-    ['Referee', Boolean(bundle.fixture.referee), bundle.fixture.referee || 'Designazione non disponibile.'],
+    ['Weather & Pitch', Boolean(bundle.weather), bundle.weather ? `${weatherSummary(bundle.weather)} · ${bundle.weather.city} · solo informativo` : 'Previsione meteo non disponibile.', 'weather'],
+    ['Referee', Boolean(bundle.fixture.referee), bundle.fixture.referee || 'Designazione non disponibile.', 'referee'],
     ['Competition Context AI', competitionActive, competitionNote],
     ['Historical Matchup', Boolean(bundle.h2h), 'Peso massimo limitato al 7%.'],
     ['Poisson / Dixon-Coles', true, 'Distribuzione completa dei risultati esatti.'],
-    ['Bayesian Update', true, 'Quote, forma e nuove disponibilità aggiornano il prior statistico.'],
-    ['Machine Learning', false, 'Nessun modello addestrato e validato incluso: evitata falsa precisione.'],
     ['Monte Carlo', true, 'Incertezza su ritmo e produzione offensiva.'],
-    ['Market Odds', Boolean(bundle.odds), bundle.odds?.bookmaker || 'Quote non disponibili.'],
+    ['Market Odds', Boolean(bundle.odds), bundle.odds?.bookmaker || 'Quote non disponibili.', 'odds'],
     ['Market Movement', Boolean(bundle.odds?.opening), marketMovementNote(bundle.odds)],
     ['News Intelligence AI', newsActive, newsNote],
     ['Model Ensemble', true, 'Pesi rinormalizzati sui soli modelli disponibili.'],
@@ -297,7 +295,11 @@ function workflowAgents(bundle, quality, neutral, ai = null) {
     ['Final Explanation AI', explanationActive, explanationNote],
     ['Robustness', true, 'Scenari casa, base e trasferta.'],
     ['Audit', true, 'Timestamp, fonti, pesi, esclusioni e limitazioni pubblicati.']
-  ].map(([name, active, note]) => ({ name, active, note }));
+  ].map(([name, active, note, sourceKey = null]) => {
+    const sourceError = sourceKey ? bundle.sourceStatus?.[sourceKey]?.error : null;
+    const status = active ? 'active' : sourceError ? 'unavailable_source' : 'inactive';
+    return { name, active, status, note: status === 'unavailable_source' ? sourceError : note };
+  });
 }
 
 export function analyzeMatch(bundle, options, config) {
@@ -339,8 +341,10 @@ export function analyzeMatch(bundle, options, config) {
   const uncertainty = uncertaintyReport(finalOutcomes);
   const activeSources = sources.filter((source) => source.probabilities);
   const activeWeight = activeSources.reduce((sum, source) => sum + source.weight, 0);
+  const sourceKeyByModel = { market: 'odds', provider: 'prediction', h2h: 'h2h', form: 'recentHome' };
   const agents = sources.map((source) => ({
     id: source.id, name: source.agent, active: Boolean(source.probabilities),
+    unavailableReason: source.probabilities ? null : (bundle.sourceStatus?.[sourceKeyByModel[source.id]]?.error || null),
     effectiveWeight: source.probabilities ? round(source.weight / activeWeight, 4) : 0,
     probabilities: source.probabilities ? Object.fromEntries(Object.entries(source.probabilities).map(([key, value]) => [key, round(value, 4)])) : null
   }));
@@ -391,6 +395,7 @@ export function analyzeMatch(bundle, options, config) {
     },
     markets: recommendation.candidates,
     exactScores: exactScores(calibratedMatrix, 10),
+    scoreGrid: scoreGridFromMatrix(calibratedMatrix),
     simulation: monteCarlo,
     progression,
     timeline,
@@ -403,6 +408,7 @@ export function analyzeMatch(bundle, options, config) {
       consensus: round(consensus, 4), robustness: round(robustness, 4),
       disagreements, challenge, riskFlags,
       bookmaker: bundle.odds?.bookmaker || null,
+      oddsMovement: oddsMovementFromOdds(bundle.odds),
       oddsUpdatedAt: bundle.odds?.updatedAt || null,
       calibration: {
         type: 'structural_matrix_to_ensemble',
@@ -419,7 +425,10 @@ export function analyzeMatch(bundle, options, config) {
       lineupsConfirmed: Boolean(bundle.lineups?.confirmed),
       providerAdvice: bundle.prediction?.advice || null,
       referee: bundle.fixture.referee || null,
-      sourceStatus: bundle.sourceStatus || null
+      sourceStatus: bundle.sourceStatus || null,
+      form: { home: formFromRecent(bundle.recentHome), away: formFromRecent(bundle.recentAway) },
+      standings: bundle.standingsContext || { home: null, away: null },
+      weather: bundle.weather || null
     }
   };
 }
