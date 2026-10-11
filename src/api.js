@@ -92,8 +92,8 @@ export function createApi({ config, provider, aiOrchestrator, analysisCache, led
     return `analysis:v6:${fixtureId}:${dataVersion}:neutral=${Boolean(neutral)}:ai=${useAi ? aiMode : 'off'}:provider=${config.ai.provider}:models=${config.ai.modelDefault}:${config.ai.modelChallenge}:${config.ai.modelExplanation}:limits=${config.ai.maxProbabilityShiftPp}:${config.ai.maxTotalXgDelta}:dedup=${config.ai.duplicateEvidenceScale}`;
   }
 
-  async function analyzeFixture(fixtureId, neutral, { refresh = false, useAi = true } = {}) {
-    const bundle = await provider.getAnalysisBundle(fixtureId, { force: refresh });
+  async function analyzeFixture(fixtureId, neutral, { refresh = false, useAi = true, lite = false } = {}) {
+    const bundle = await provider.getAnalysisBundle(fixtureId, { force: refresh, lite });
     const dataVersion = buildDataVersion(bundle);
     const key = cacheKey({ fixtureId, dataVersion, neutral, aiMode: aiOrchestrator.effectiveMode(), useAi });
     const result = await analysisCache.getOrCompute(
@@ -257,7 +257,7 @@ export function createApi({ config, provider, aiOrchestrator, analysisCache, led
       try {
         validateFixtureId(fixtureId);
         const fixture = byId.get(fixtureId);
-        const analysis = await analyzeFixture(fixtureId, fixture ? isNeutralFixture(fixture) : false, { useAi: false });
+        const analysis = await analyzeFixture(fixtureId, fixture ? isNeutralFixture(fixture) : false, { useAi: false, lite: true });
         const recommendation = analysis.summary.recommendation;
         return {
           fixtureId,

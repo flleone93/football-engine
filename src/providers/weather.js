@@ -22,6 +22,8 @@ export class WeatherService {
     this.fetch = fetchImpl;
     this.now = now;
     this.cache = cache;
+    // Previsioni in cache 1 ora per luogo e ora: partite vicine nella stessa città non ripetono la richiesta.
+    this.forecastCache = new TTLCache(3600000, 500);
   }
 
   async #json(url, prefix) {
@@ -47,6 +49,10 @@ export class WeatherService {
     if (!city || !Number.isFinite(kickoffMs) || kickoffMs < now || kickoffMs - now > MAX_AHEAD_MS) return null;
     const place = await this.geocode(city);
     if (!place) return null;
+    const hourKey = new Date(Math.floor(kickoffMs / 3600000) * 3600000).toISOString().slice(0, 13);
+    const cacheKey = `fc:${place.latitude},${place.longitude},${hourKey}`;
+    const cached = this.forecastCache.get(cacheKey);
+    if (cached !== undefined) return cached;
     const day = new Date(kickoffMs).toISOString().slice(0, 10);
     const query = new URLSearchParams({
       latitude: String(place.latitude), longitude: String(place.longitude),
@@ -55,10 +61,9 @@ export class WeatherService {
     });
     const payload = await this.#json(`${FORECAST_URL}?${query}`, 'weather');
     const hourly = payload.hourly || {};
-    const hourKey = new Date(Math.floor(kickoffMs / 3600000) * 3600000).toISOString().slice(0, 13);
     const index = (hourly.time || []).findIndex((time) => String(time).slice(0, 13) === hourKey);
-    if (index < 0) return null;
-    return {
+    if (index < 0) return this.forecastCache.set(cacheKey, null);
+    return this.forecastCache.set(cacheKey, {
       city: place.name,
       temperatureC: hourly.temperature_2m?.[index] ?? null,
       precipitationMm: hourly.precipitation?.[index] ?? null,
@@ -66,7 +71,7 @@ export class WeatherService {
       windKmh: hourly.wind_speed_10m?.[index] ?? null,
       retrievedAt: new Date(now).toISOString(),
       source: 'Open-Meteo'
-    };
+    });
   }
 }
 

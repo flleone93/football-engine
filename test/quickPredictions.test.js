@@ -32,3 +32,14 @@ test('previsioni rapide: validazione dell input', async () => {
   await assert.rejects(call(instance, { fixtureIds: Array.from({ length: 13 }, (_, i) => `id${i}`) }), { code: 'validation_error' });
   await assert.rejects(call(instance, {}), { code: 'validation_error' });
 });
+
+test('previsioni rapide: il provider viene chiamato in modalità lite', async () => {
+  const config = buildConfig({ DEMO_MODE: 'true', AI_MODE: 'off' });
+  const demo = new DemoProvider();
+  const options = [];
+  const provider = { mode: 'demo', getFixtures: (o) => demo.getFixtures(o), getAnalysisBundle: (id, o = {}) => { options.push(o); return demo.getAnalysisBundle(id, o); } };
+  const instance = createApi({ config, provider, aiOrchestrator: new HybridAiOrchestrator(config), analysisCache: new TTLCache(60000, 500) });
+  await call(instance, { fixtureIds: ['demo-mls'] });
+  assert.equal(options.length, 1);
+  assert.equal(options[0].lite, true);
+});

@@ -95,3 +95,23 @@ test('bundle ESPN: meteo non disponibile non blocca l analisi', async () => {
   assert.equal(bundle.sourceStatus.weather.available, false);
   assert.match(bundle.sourceStatus.weather.error, /Meteo/);
 });
+
+test('previsione rapida (lite): niente notizie di squadra né meteo', async () => {
+  const calls = [];
+  let weatherCalls = 0;
+  const weather = { forecastAt: async () => { weatherCalls += 1; return null; } };
+  const provider = new EspnProvider({ timezone: 'Europe/Rome' }, { fetchImpl: espnFetch(calls), weather });
+  const bundle = await provider.getAnalysisBundle('espn:ita.1:99', { lite: true });
+  assert.equal(calls.some((url) => url.includes('/news?team=')), false);
+  assert.equal(weatherCalls, 0);
+  assert.equal(bundle.weather, null);
+  assert.equal(bundle.sourceStatus.weather, undefined);
+});
+
+test('previsione meteo in cache per luogo e ora', async () => {
+  const calls = [];
+  const service = new WeatherService({ fetchImpl: fakeFetch(calls), now: () => NOW });
+  await service.forecastAt({ venue: 'A, Como', kickoff: '2026-10-11T10:30:00Z' });
+  await service.forecastAt({ venue: 'B, Como', kickoff: '2026-10-11T10:45:00Z' });
+  assert.equal(calls.filter((url) => url.includes('api.open-meteo.com/v1/forecast')).length, 1);
+});

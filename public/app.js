@@ -58,7 +58,12 @@ function relativeDay(key) {
 const favorites = (() => {
   const KEY = 'football-engine-favorites-v1';
   let data = { team: [], league: [] };
-  try { data = { ...data, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { /* sessione senza archiviazione */ }
+  try {
+    const stored = JSON.parse(localStorage.getItem(KEY) || '{}');
+    // Valori malformati (archiviazione corrotta o formato futuro) vengono scartati invece di bloccare l'elenco.
+    const clean = (value) => (Array.isArray(value) ? value.filter((item) => typeof item === 'string' || typeof item === 'number').map(String) : []);
+    data = { team: clean(stored?.team), league: clean(stored?.league) };
+  } catch { /* sessione senza archiviazione */ }
   const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch { /* ignorato */ } };
   return {
     has: (type, id) => data[type].includes(String(id)),
@@ -226,23 +231,55 @@ function renderFixtures() {
         </span>
         ${chevron}
       </button>
-      <button class="star-button" type="button" data-star-league="${escapeHtml(fixture.league.id)}" data-star-home="${escapeHtml(fixture.home.id)}" aria-pressed="${starred}" aria-label="${starred ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'} ${escapeHtml(fixture.home.name)}">${starred ? '★' : '☆'}</button>
+      <button class="star-button" type="button" data-star-fixture="${escapeHtml(fixture.id)}" data-star-league="${escapeHtml(fixture.league.id)}" data-star-home="${escapeHtml(fixture.home.id)}" aria-pressed="${starred}" aria-label="${starred ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'} ${escapeHtml(fixture.home.name)}">${starred ? '★' : '☆'}</button>
     </div>`;
   }).join('');
   elements.fixtureList.querySelectorAll('[data-width]').forEach((node) => { node.style.width = `${Number(node.dataset.width)}%`; });
   elements.fixtureList.querySelectorAll('[data-fixture-id]').forEach((button) => button.addEventListener('click', () => selectFixture(button.dataset.fixtureId)));
   elements.fixtureList.querySelectorAll('[data-star-home]').forEach((button) => button.addEventListener('click', () => {
-    favorites.toggle('team', button.dataset.starHome);
+    const fixture = state.fixtures.find((item) => String(item.id) === button.dataset.starFixture);
+    if (!fixture) return;
+    if (favorites.fixtureIsFavorite(fixture)) {
+      // Stella piena: si spegne davvero, togliendo ogni preferito che la accende.
+      for (const teamId of [fixture.home.id, fixture.away.id]) if (favorites.has('team', teamId)) favorites.toggle('team', teamId);
+      if (favorites.has('league', fixture.league.id)) favorites.toggle('league', fixture.league.id);
+    } else {
+      favorites.toggle('team', fixture.home.id);
+    }
     renderFixtures();
   }));
-  requestQuickPredictions(fixtures);
+  observeVisibleFixtures();
+}
+
+// Previsioni rapide solo per le schede che entrano nello schermo (niente analisi in blocco dal telefono).
+const visibleFixtureIds = new Set();
+let fixtureObserver = null;
+function observeVisibleFixtures() {
+  const cards = [...elements.fixtureList.querySelectorAll('[data-fixture-id]')];
+  // Le prime 12 in ordine di visualizzazione subito (anche se l'osservatore è sospeso); il resto solo scorrendo.
+  const firstIds = cards.slice(0, 12).map((card) => card.dataset.fixtureId);
+  if (typeof IntersectionObserver !== 'function') {
+    requestQuickPredictions(firstIds);
+    return;
+  }
+  firstIds.forEach((id) => visibleFixtureIds.add(id));
+  fixtureObserver?.disconnect();
+  fixtureObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) visibleFixtureIds.add(entry.target.dataset.fixtureId);
+      else visibleFixtureIds.delete(entry.target.dataset.fixtureId);
+    }
+    requestQuickPredictions([...visibleFixtureIds]);
+  }, { rootMargin: '200px 0px' });
+  cards.forEach((card) => fixtureObserver.observe(card));
+  requestQuickPredictions([...visibleFixtureIds]);
 }
 
 let quickTimer = null;
-function requestQuickPredictions(fixtures) {
+function requestQuickPredictions(fixtureIds) {
   clearTimeout(quickTimer);
   quickTimer = setTimeout(async () => {
-    const missing = fixtures.map((fixture) => String(fixture.id)).filter((id) => !state.quick.has(id) && !state.quickPending.has(id)).slice(0, 36);
+    const missing = fixtureIds.map(String).filter((id) => !state.quick.has(id) && !state.quickPending.has(id)).slice(0, 24);
     if (!missing.length) return;
     missing.forEach((id) => state.quickPending.add(id));
     const batches = [];

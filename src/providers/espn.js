@@ -323,7 +323,8 @@ export class EspnProvider {
     return groups.flatMap((group) => group.standings?.entries || []);
   }
 
-  async getAnalysisBundle(fixtureId, { force = false } = {}) {
+  /** `lite`: previsione rapida per l'elenco, senza notizie di squadra né meteo (non mostrati nell'elenco). */
+  async getAnalysisBundle(fixtureId, { force = false, lite = false } = {}) {
     const decoded = decodeFixtureId(fixtureId);
     if (!decoded) throw Object.assign(new Error('Identificativo ESPN non valido.'), { code: 'not_found' });
     const league = this.leagues.find((item) => item.slug === decoded.slug)
@@ -373,7 +374,7 @@ export class EspnProvider {
     sourceStatus.injuries = { available: false, error: 'Elenco indisponibili non fornito dalla fonte pubblica.' };
     sourceStatus.prediction = { available: false, error: 'Nessuna previsione esterna nella fonte pubblica.' };
 
-    const teamArticles = (await Promise.all([fixture.home.id, fixture.away.id].map(async (teamId) => {
+    const teamArticles = lite ? [] : (await Promise.all([fixture.home.id, fixture.away.id].map(async (teamId) => {
       try {
         const payload = await this.request(`/site/v2/sports/soccer/${decoded.slug}/news?team=${teamId}`, { force });
         return payload.articles || [];
@@ -384,7 +385,7 @@ export class EspnProvider {
     const news = relevantNews(summary.news?.articles || [], teamArticles, fixture);
 
     let weather = null;
-    try {
+    if (!lite) try {
       weather = await this.weather.forecastAt({ venue: fixture.venue, kickoff: fixture.kickoff });
       sourceStatus.weather = { available: Boolean(weather), error: weather ? null : 'Meteo non disponibile: città non riconosciuta o partita oltre 16 giorni.' };
     } catch {
