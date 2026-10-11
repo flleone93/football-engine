@@ -12,7 +12,8 @@ const state = {
   listScroll: 0,
   quick: new Map(),
   quickPending: new Set(),
-  listFilter: 'all'
+  listFilter: 'all',
+  journal: null
 };
 
 const elements = Object.fromEntries([
@@ -26,7 +27,8 @@ const elements = Object.fromEntries([
   'performanceTab', 'performanceView', 'performanceRefresh', 'performanceExport', 'performanceLoading',
   'performanceError', 'performanceResult',
   'settingsTab', 'settingsView', 'settingsForm', 'settingsProvider', 'settingsKey', 'settingsKeyState', 'settingsMode',
-  'settingsClearKey', 'settingsDays', 'settingsLeagues', 'settingsAutoTrack', 'settingsTrackNow', 'settingsStatus', 'appVersion', 'sortSelect', 'settingsTheme', 'onboarding'
+  'settingsClearKey', 'settingsDays', 'settingsLeagues', 'settingsAutoTrack', 'settingsTrackNow', 'settingsStatus', 'appVersion', 'sortSelect', 'settingsTheme', 'onboarding',
+  'journalLimitNotice', 'journalResult'
 ].map((id) => [id, document.getElementById(id)]));
 
 const percent = (value, digits = 1) => `${(Number(value || 0) * 100).toFixed(digits).replace('.', ',')}%`;
@@ -93,6 +95,8 @@ async function request(url, options = {}) {
     clearTimeout(timer);
   }
 }
+
+const postJson = (url, body, options = {}) => request(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), ...options });
 
 // ---------- Avvio e calendario ----------
 
@@ -564,6 +568,83 @@ function weatherText(weather) {
   return parts.join(' · ');
 }
 
+const stakeText = (suggestion) => {
+  if (!suggestion || suggestion.kellyFraction == null) return '—';
+  if (!suggestion.hasStake) return 'Nessuna puntata consigliata';
+  return suggestion.stake == null ? `${percent(suggestion.fraction)} del bankroll` : currency(suggestion.stake);
+};
+
+async function suggestStake(probability, odd) {
+  try {
+    return await postJson('/api/journal/suggest', { probability, odd });
+  } catch {
+    return null;
+  }
+}
+
+function renderJournalLimitNotice() {
+  const limits = state.journal?.limits;
+  const node = elements.journalLimitNotice;
+  if (!node) return;
+  if (!limits?.anyExceeded) { node.classList.add('hidden'); return; }
+  const parts = [];
+  if (limits.daily.exceeded) parts.push(`oggi hai perso ${currency(limits.daily.loss)} (limite ${currency(limits.daily.limit)})`);
+  if (limits.weekly.exceeded) parts.push(`negli ultimi 7 giorni hai perso ${currency(limits.weekly.loss)} (limite ${currency(limits.weekly.limit)})`);
+  node.innerHTML = `<strong>Limite di perdita superato:</strong> ${escapeHtml(parts.join('; '))}. Valuta una pausa: la decisione resta tua.`;
+  node.classList.remove('hidden');
+}
+
+async function loadJournal() {
+  try {
+    state.journal = await request('/api/journal', { timeout: 60000 });
+  } catch {
+    state.journal = null;
+  }
+  renderJournalLimitNotice();
+  if (typeof renderJournal === 'function' && !elements.performanceView.hidden) renderJournal();
+}
+
+function wireStakeAndJournal(analysis) {
+  const recommendation = analysis.summary.recommendation;
+  const selected = analysis.markets.find((market) => market.key === recommendation.key);
+  const line = elements.analysisResult.querySelector('[data-stake-line] b');
+  if (line) {
+    if (!(selected?.odd > 1)) line.textContent = '—';
+    else suggestStake(selected.probability, selected.odd).then((suggestion) => { line.textContent = stakeText(suggestion); });
+  }
+  const form = elements.analysisResult.querySelector('[data-journal-form]');
+  if (!form) return;
+  const status = form.querySelector('[data-journal-status]');
+  let stakeEdited = false;
+  const fill = async ({ keepOdd = false } = {}) => {
+    const option = form.marketKey.selectedOptions[0];
+    if (!keepOdd) form.oddTaken.value = decimal(option.dataset.odd);
+    const suggestion = await suggestStake(Number(option.dataset.probability), form.oddTaken.value);
+    if (!stakeEdited) form.stake.value = suggestion?.stake ? decimal(suggestion.stake) : '';
+    status.textContent = `Suggerimento: ${stakeText(suggestion)}`;
+  };
+  form.marketKey.addEventListener('change', () => fill());
+  form.oddTaken.addEventListener('change', () => fill({ keepOdd: true }));
+  form.stake.addEventListener('input', () => { stakeEdited = true; });
+  fill();
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = form.querySelector('button[type="submit"]');
+    if (button.disabled) return;
+    button.disabled = true;
+    try {
+      await postJson('/api/journal', { fixtureId: analysis.fixture.id, marketKey: form.marketKey.value, oddTaken: form.oddTaken.value, stake: form.stake.value });
+      status.textContent = 'Giocata salvata nel diario (Storico › Le mie giocate).';
+      elements.appStatus.textContent = status.textContent;
+      loadJournal();
+    } catch (error) {
+      status.textContent = error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
 function renderAnalysis(analysis) {
   const { fixture, summary, governance } = analysis;
   const activeModels = analysis.agents.filter((agent) => agent.active);
@@ -603,6 +684,17 @@ function renderAnalysis(analysis) {
         <span class="chip">Confidenza <b>${summary.confidence}/100</b></span>
       </div>
       <p class="pick-note">${escapeHtml(recommendation.status)} Intervallo ${percent(recommendation.interval[0])}–${percent(recommendation.interval[1])}. Favorita ai 90’: ${escapeHtml(outcomeName(summary.outcomes.home >= summary.outcomes.away ? (summary.outcomes.home >= summary.outcomes.draw ? 'home' : 'draw') : (summary.outcomes.away >= summary.outcomes.draw ? 'away' : 'draw')))}.</p>
+      <p class="stake-line" data-stake-line>Puntata consigliata: <b>…</b></p>
+      ${analysis.markets.some((market) => market.odd > 1) && Date.parse(fixture.kickoff) > Date.now() ? `<details class="journal-form-wrap">
+        <summary class="secondary-button">Aggiungi al diario</summary>
+        <form class="journal-form" data-journal-form>
+          <label>Mercato<select name="marketKey">${analysis.markets.filter((market) => market.odd > 1).map((market) => `<option value="${escapeHtml(market.key)}" data-probability="${market.probability}" data-odd="${market.odd}" ${market.key === recommendation.key ? 'selected' : ''}>${escapeHtml(market.label)} · ${decimal(market.odd)}</option>`).join('')}</select></label>
+          <label>Quota presa<input name="oddTaken" inputmode="decimal" autocomplete="off" required></label>
+          <label>Puntata (€)<input name="stake" inputmode="decimal" autocomplete="off" required></label>
+          <button class="primary-button" type="submit">Salva giocata</button>
+          <p class="muted small" data-journal-status role="status"></p>
+        </form>
+      </details>` : ''}
     </section>
 
     <div class="metric-grid">
@@ -688,6 +780,7 @@ function renderAnalysis(analysis) {
   // window.print() non funziona dentro un Artifact né in modo affidabile nelle web app iOS a schermo intero.
   if (claudeRuntime || standaloneDisplay) printButton?.remove();
   else printButton?.addEventListener('click', () => window.print());
+  wireStakeAndJournal(analysis);
 }
 
 function slug(value) {
@@ -1129,6 +1222,7 @@ async function boot() {
     elements.analyzeButton.textContent = aiActive() ? 'Analizza con agenti AI' : 'Analizza';
     elements.quickAnalyzeButton.classList.toggle('hidden', !aiActive());
     await loadFixtures();
+    loadJournal();
     setInterval(() => loadFixtures(true), state.meta.autoRefreshMinutes * 60_000);
   } catch (error) {
     elements.fixturesLoading.classList.add('hidden');

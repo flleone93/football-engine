@@ -550,3 +550,14 @@ details.nested > summary { cursor: pointer; color: var(--accent); font-size: 13p
   body:not(.show-detail) .analysis-stage { display: block; }
   details.section-card { break-inside: avoid; }
 }
+
+/* ---------- Puntata e diario (1.11) ---------- */
+.stake-line { color: var(--muted); font-size: 13px; }
+.stake-line b { color: var(--text); font-family: var(--font-data); }
+.journal-form-wrap > summary { list-style: none; width: 100%; }
+.journal-form-wrap > summary::-webkit-details-marker { display: none; }
+.journal-form { display: grid; gap: 10px; margin-top: 10px; }
+.journal-form label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.journal-form input { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 16px; }
+.limit-notice { border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+@media print { .journal-form-wrap, #journalLimitNotice { display: none !important; } }
