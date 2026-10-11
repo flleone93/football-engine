@@ -19,7 +19,7 @@ Il sistema produce analisi di singole partite e ranking Top 5/6/7 giornalieri co
 
 ## Stato Attuale
 
-Versione: `1.9.0`
+Versione: `1.11.0`
 
 Stack:
 
@@ -101,6 +101,8 @@ File principali:
 - `src/tracking/predictionLedger.js` (registro previsioni append-only)
 - `src/tracking/metrics.js` (Brier, log loss, RPS, calibrazione, ROI)
 - `src/tracking/fileStorage.js` (persistenza JSONL, solo server)
+- `src/prediction/staking.js` (Kelly frazionario e puntata consigliata)
+- `src/tracking/betJournal.js` (diario giocate, CLV, riepilogo, limiti di perdita)
 
 ## Agenti AI
 
@@ -247,6 +249,10 @@ Endpoint:
 - `GET /api/performance`
 - `GET /api/performance/records`
 - `POST /api/performance/settle` (admin)
+- `POST /api/quick-predictions` (sintesi 1X2 per l'elenco, da 1 a 12 partite)
+- `GET /api/journal` (diario derivato: giocate, riepilogo, perdite, limiti)
+- `POST /api/journal` (aggiungi: `fixtureId`, `marketKey`, `oddTaken`, `stake`)
+- `POST /api/journal/delete`, `POST /api/journal/settings`, `POST /api/journal/suggest` (puntata Kelly)
 
 `/api/usage` restituisce aggregati pubblici. Con `ADMIN_API_TOKEN` e header Bearer include i dettagli recenti degli errori.
 

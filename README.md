@@ -2,7 +2,7 @@
 
 Creata da **Leone Francesco**.
 
-Versione 1.10.0. Motore ibrido per l'analisi probabilistica delle partite di calcio con dati reali: baseline statistica deterministica, cinque agenti AI con guardrail, Top Picks giornaliere, simulazione quote e validazione post-partita delle previsioni.
+Versione 1.11.0. Motore ibrido per l'analisi probabilistica delle partite di calcio con dati reali: baseline statistica deterministica, cinque agenti AI con guardrail, Top Picks giornaliere, simulazione quote e validazione post-partita delle previsioni.
 
 ## Quattro modi di usarlo
 
@@ -12,6 +12,15 @@ Versione 1.10.0. Motore ibrido per l'analisi probabilistica delle partite di cal
 | **App iPhone** | **Live** ESPN scaricato dal telefono | **Claude (consigliato)**, Gemini o OpenAI con la chiave salvata sul telefono | [flleone93.github.io/football-engine](https://flleone93.github.io/football-engine/) → Safari → Condividi → Aggiungi alla schermata Home |
 | **Server locale / Render** | **Live** ESPN senza chiave, oppure API-Football con chiave | Gemini o OpenAI con chiave lato server | `Avvia Football Engine - Live.command` oppure `npm start` |
 | **File offline** | Snapshot reale ESPN o dati demo | Spenti (sola baseline statistica) | `Football Engine v1.9.0 - Live offline.html` / `- Demo offline.html` |
+
+## Novità 1.11.0: valore e giocate
+
+- **Puntata consigliata** sulla scheda Indicazione con il criterio di Kelly frazionario: 1/4 di Kelly di base (scelta 1/8 · 1/4 · 1/2), mai oltre il 2% del bankroll, arrotondata a 0,50 €. Senza bankroll impostato è mostrata in % del bankroll; senza valore atteso positivo compare "Nessuna puntata consigliata".
+- **Diario delle giocate**: "Aggiungi al diario" con quota e puntata precompilate e modificabili (anche con la virgola). Si registrano solo partite analizzate e non ancora iniziate.
+- **Regolazione automatica** con il risultato al 90' già usato dallo Storico, e **CLV** (quota presa / quota finale prima del calcio d'inizio − 1). Senza quota finale il CLV resta "—", mai stimato; prima del calcio d'inizio è indicato come provvisorio.
+- **Storico › Le mie giocate**: profitto, ROI, CLV medio, percentuale vinte, elenco con elimina, export CSV del diario, impostazioni "Bankroll e limiti".
+- **Limiti di perdita** giornaliero e settimanale: al superamento compare un avviso in cima all'app, senza blocchi.
+- Il diario resta sul telefono (IndexedDB) nell'app iPhone, in un file privato `data/bet-journal.jsonl` sul server (escluso da git), solo per la sessione nell'Artifact e nei file offline.
 
 ## Novità 1.10.0: agenti riparati e app più ricca
 

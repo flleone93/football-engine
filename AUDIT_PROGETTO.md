@@ -2,7 +2,7 @@
 
 ## Esito
 
-Release verificata: `1.9.0`.
+Release verificata: `1.11.0`.
 
 Il progetto è una base eseguibile e pubblicabile per un motore ibrido di previsione calcistica. Il percorso demo funziona senza credenziali; il percorso live mantiene le chiavi nel backend; i calcoli restano deterministici e gli agenti AI possono solo proporre correzioni limitate e tracciate.
 
@@ -27,6 +27,15 @@ Il progetto è una base eseguibile e pubblicabile per un motore ibrido di previs
 | Alta | I nomi modello e il provider non entravano integralmente nella cache/audit | Provider e modelli effettivi sono inclusi in cache key, meta e trace |
 | Alta | Lo schema condiviso contiene vincoli non supportati dal subset JSON Schema Gemini | Aggiunta conversione deterministica dello schema e validazione applicativa post-risposta |
 | Alta | Interactions API conserva lo stato per impostazione predefinita | Ogni richiesta Gemini imposta esplicitamente `store=false` |
+
+## Rilievi Chiusi nella 1.11.0 (Fase 2: valore e giocate)
+
+- Puntata con Kelly frazionario (`src/prediction/staking.js`): funzione pura con valori di riferimento testati; ogni mercato con quota espone `kellyFraction`.
+- Diario delle giocate (`src/tracking/betJournal.js`) append-only con storage iniettato; quota di chiusura e risultato non vengono copiati ma ricavati a ogni lettura dal registro previsioni, che ora salva tutte le quote (`prediction.odds`).
+- CLV mai stimato: senza quota di chiusura resta vuoto; prima del calcio d'inizio è marcato provvisorio ed escluso dalla media.
+- Giocate solo pre-partita su partite già registrate: evita giocate impossibili da regolare e CLV falsati.
+- Limiti di perdita con avviso e nessun blocco; input con virgola decimale accettati, valori negativi rifiutati con messaggio chiaro.
+- Verifica: 90 test automatici; prova nel browser a 390×844 (scuro) e 1024 px (chiaro) senza scorrimento orizzontale.
 
 ## Rilievi Chiusi nella 1.10.0 (Fase 0 + Fase 1)
 
