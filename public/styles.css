@@ -399,6 +399,34 @@ select, .top-controls input, .settings-group input[type="password"] {
 .skeleton-line { height: 6px; flex: 1; border-radius: 4px; background: linear-gradient(90deg, var(--surface-2), var(--surface-3), var(--surface-2)); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 
+/* Dettaglio arricchito */
+.team-line { display: grid; gap: 4px; min-width: 0; }
+.team-line:last-child { justify-items: end; text-align: right; }
+.form-dots { display: flex; gap: 4px; }
+.form-dot { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: var(--accent-ink); font: 700 10px var(--font-data); }
+.form-dot.W { background: var(--good); }
+.form-dot.D { background: var(--draw); }
+.form-dot.L { background: var(--bad); color: #fff; }
+.team-meta { color: var(--dim); font-size: 11.5px; }
+.team-star { padding: 0 2px; border: 0; color: var(--dim); background: transparent; font-size: 18px; line-height: 1; min-height: 32px; }
+.team-star[aria-pressed="true"] { color: var(--warn); }
+.team-line .team-star { justify-self: start; }
+.team-line:last-child .team-star { justify-self: end; }
+.league-star { min-height: 36px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--surface-2); font-size: 12.5px; font-weight: 600; }
+.league-star[aria-pressed="true"] { border-color: transparent; color: var(--accent-ink); background: var(--warn); }
+.weather-line { color: var(--muted); font-size: 13px; }
+.score-grid { display: grid; grid-template-columns: 26px repeat(6, minmax(0, 1fr)); gap: 3px; font: 600 11px var(--font-data); }
+.score-grid .axis { display: grid; place-items: center; color: var(--dim); }
+.score-cell { display: grid; place-items: center; aspect-ratio: 1; max-width: 100%; border-radius: 6px; color: var(--text); background: var(--accent); font-variant-numeric: tabular-nums; }
+.score-cell.top { outline: 2px solid var(--text); }
+.movement-list { display: grid; gap: 8px; }
+.movement-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; font-size: 13.5px; }
+.movement-row b { font-family: var(--font-data); }
+.workflow-agent.unavailable_source span { color: var(--warn); }
+.share-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+details.nested { margin-top: 10px; }
+details.nested > summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---------- Telefono ---------- */

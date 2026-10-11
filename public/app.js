@@ -475,6 +475,58 @@ function renderTimeline(analysis) {
   </div><p class="muted small">${escapeHtml(timeline.caveat)}</p>`);
 }
 
+const formLabel = { W: 'V', D: 'P', L: 'S' };
+function formDots(letters) {
+  if (!letters?.length) return '<span class="team-meta">Forma non disponibile</span>';
+  return `<span class="form-dots" aria-label="Ultime partite: ${letters.map((letter) => formLabel[letter]).join(' ')}">${letters.map((letter) => `<span class="form-dot ${letter}">${formLabel[letter]}</span>`).join('')}</span>`;
+}
+
+function standingText(standing) {
+  return standing?.rank ? `${standing.rank}° · ${standing.points} pt in ${standing.played} gare` : '';
+}
+
+function renderScoreGrid(grid, topScore) {
+  if (!grid?.cells) return '';
+  const max = Math.max(...grid.cells.flat());
+  const header = `<span class="axis"></span>${grid.cells[0].map((_, away) => `<span class="axis">${away}</span>`).join('')}`;
+  const rows = grid.cells.map((row, home) => `<span class="axis">${home}</span>${row.map((value, away) => `<span class="score-cell${`${home}-${away}` === topScore ? ' top' : ''}" data-alpha="${max ? (0.08 + 0.92 * value / max).toFixed(3) : 0}" title="${home}-${away}: ${percent(value)}">${value >= 0.01 ? Math.round(value * 100) : ''}</span>`).join('')}`).join('');
+  return `<p class="muted small">Righe: gol della squadra di casa · colonne: gol della squadra in trasferta · valori in %. Altri risultati: ${percent(grid.other)}.</p><div class="score-grid" role="img" aria-label="Probabilità dei risultati esatti">${header}${rows}</div>`;
+}
+
+function renderOddsMovement(movement) {
+  if (!movement?.items?.length) return '<p class="muted">La fonte non fornisce le quote di apertura per questa partita.</p>';
+  return `<div class="movement-list">${movement.items.map((item) => {
+    const arrow = item.current > item.open ? '↑' : item.current < item.open ? '↓' : '→';
+    const tone = item.impliedChangePp > 0.25 ? 'signal-positive' : item.impliedChangePp < -0.25 ? 'signal-negative' : 'muted';
+    return `<div class="movement-row"><span>${escapeHtml(item.label)}</span><b>${decimal(item.open)} ${arrow} ${decimal(item.current)}</b><span class="${tone}">${item.impliedChangePp >= 0 ? '+' : ''}${decimal(item.impliedChangePp, 1)} pp</span></div>`;
+  }).join('')}</div><p class="muted small">pp = variazione della probabilità implicita. Solo informativo: non entra nel modello.</p>`;
+}
+
+function icsForFixture(fixture) {
+  const stamp = (date) => new Date(date).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const start = new Date(fixture.kickoff);
+  const end = new Date(start.getTime() + 2 * 3600000);
+  const text = (value) => String(value).replace(/[,;\\]/g, (char) => `\\${char}`);
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Leone Francesco//Football Engine//IT', 'BEGIN:VEVENT',
+    `UID:${text(fixture.id)}@football-engine`, `DTSTAMP:${stamp(Date.now())}`, `DTSTART:${stamp(start)}`, `DTEND:${stamp(end)}`,
+    `SUMMARY:${text(`${fixture.home.name} - ${fixture.away.name}`)}`, `LOCATION:${text(fixture.venue || '')}`, `DESCRIPTION:${text(fixture.league.name)}`,
+    'BEGIN:VALARM', 'TRIGGER:-PT30M', 'ACTION:DISPLAY', 'DESCRIPTION:Calcio d\'inizio tra 30 minuti', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+}
+
+function shareText(analysis) {
+  const { fixture, summary } = analysis;
+  const odd = analysis.markets.find((market) => market.key === summary.recommendation.key)?.odd;
+  return `${fixture.home.name} - ${fixture.away.name} (${fixture.league.name}, ${formatDateTime(fixture.kickoff)})\n1 ${percent(summary.outcomes.home, 0)} · X ${percent(summary.outcomes.draw, 0)} · 2 ${percent(summary.outcomes.away, 0)}\nIndicazione: ${summary.recommendation.label} ${percent(summary.recommendation.probability, 0)}${odd ? ` a quota ${decimal(odd)}` : ''}\nPrevisione probabilistica, non una certezza. Football Engine di Leone Francesco: https://flleone93.github.io/football-engine/`;
+}
+
+function weatherText(weather) {
+  const parts = [];
+  if (Number.isFinite(weather.temperatureC)) parts.push(`${Math.round(weather.temperatureC)}°C`);
+  if (Number.isFinite(weather.precipitationProbability)) parts.push(`pioggia ${weather.precipitationProbability}%`);
+  if (Number.isFinite(weather.windKmh)) parts.push(`vento ${Math.round(weather.windKmh)} km/h`);
+  return parts.join(' · ');
+}
+
 function renderAnalysis(analysis) {
   const { fixture, summary, governance } = analysis;
   const activeModels = analysis.agents.filter((agent) => agent.active);
@@ -487,7 +539,13 @@ function renderAnalysis(analysis) {
   elements.analysisResult.innerHTML = `
     <section class="card match-hero">
       <div class="match-meta"><span class="kicker">${escapeHtml(fixture.league.name)}</span><span>${escapeHtml(formatDateTime(fixture.kickoff, { dateStyle: 'medium' }))}</span>${fixture.venue ? `<span>${escapeHtml(fixture.venue)}</span>` : ''}</div>
-      <div class="match-teams"><strong>${escapeHtml(fixture.home.name)}</strong><span class="vs">vs</span><strong>${escapeHtml(fixture.away.name)}</strong></div>
+      <div class="match-teams">
+        <div class="team-line"><strong>${escapeHtml(fixture.home.name)}</strong>${formDots(analysis.context.form?.home)}<span class="team-meta">${escapeHtml(standingText(analysis.context.standings?.home))}</span><button class="team-star" type="button" data-team-star="${escapeHtml(fixture.home.id)}" aria-pressed="${favorites.has('team', fixture.home.id)}" aria-label="Preferita: ${escapeHtml(fixture.home.name)}">${favorites.has('team', fixture.home.id) ? '★' : '☆'}</button></div>
+        <span class="vs">vs</span>
+        <div class="team-line"><strong>${escapeHtml(fixture.away.name)}</strong>${formDots(analysis.context.form?.away)}<span class="team-meta">${escapeHtml(standingText(analysis.context.standings?.away))}</span><button class="team-star" type="button" data-team-star="${escapeHtml(fixture.away.id)}" aria-pressed="${favorites.has('team', fixture.away.id)}" aria-label="Preferita: ${escapeHtml(fixture.away.name)}">${favorites.has('team', fixture.away.id) ? '★' : '☆'}</button></div>
+      </div>
+      <p class="match-meta"><button class="league-star" type="button" data-league-star="${escapeHtml(fixture.league.id)}" aria-pressed="${favorites.has('league', fixture.league.id)}">${favorites.has('league', fixture.league.id) ? '★' : '☆'} Competizione preferita: ${escapeHtml(fixture.league.name)}</button></p>
+      ${analysis.context.weather ? `<p class="weather-line">Meteo al calcio d'inizio (${escapeHtml(analysis.context.weather.city)}): ${escapeHtml(weatherText(analysis.context.weather))}</p>` : ''}
       <div class="outcome-bar" role="img" aria-label="Probabilità 1X2 al 90': casa ${percent(summary.outcomes.home)}, pareggio ${percent(summary.outcomes.draw)}, trasferta ${percent(summary.outcomes.away)}"><span class="home" data-width="${summary.outcomes.home * 100}"></span><span class="draw" data-width="${summary.outcomes.draw * 100}"></span><span class="away" data-width="${summary.outcomes.away * 100}"></span></div>
       <div class="outcome-legend">
         <div class="home"><span>1 · ${escapeHtml(fixture.home.name)}</span><strong>${percent(summary.outcomes.home, 0)}</strong></div>
@@ -522,14 +580,15 @@ function renderAnalysis(analysis) {
     ${section('Mercati e quote', `Modello contro ${governance.bookmaker || 'quote non disponibili'}`, renderMarkets(analysis.markets, recommendation.key), { open: true, badge: `${analysis.markets.length}` })}
     ${section('Spiegazione e agenti AI', 'Lettura del risultato e decisioni sugli agenti', renderExplanation(analysis), { open: true })}
     ${renderProgression(analysis)}
-    ${section('Risultati esatti', 'I 10 punteggi più probabili', `<div class="table-scroll"><table class="data-table"><thead><tr><th>#</th><th>Risultato</th><th>Esito</th><th class="numeric">Prob.</th><th class="numeric">Peso sull’esito</th></tr></thead><tbody>${analysis.exactScores.map((item) => `<tr><td>${item.rank}</td><td><strong>${item.score}</strong></td><td>${item.outcome}</td><td class="numeric">${percent(item.probability)}</td><td class="numeric">${percent(item.contributionToOutcome)}</td></tr>`).join('')}</tbody></table></div>`)}
+    ${section('Risultati esatti', 'Mappa delle probabilità dei punteggi', `${renderScoreGrid(analysis.scoreGrid, summary.exactScore.score)}<details class="nested"><summary>Elenco dei 10 più probabili</summary><div class="table-scroll"><table class="data-table"><thead><tr><th>#</th><th>Risultato</th><th>Esito</th><th class="numeric">Prob.</th><th class="numeric">Peso sull’esito</th></tr></thead><tbody>${analysis.exactScores.map((item) => `<tr><td>${item.rank}</td><td><strong>${item.score}</strong></td><td>${item.outcome}</td><td class="numeric">${percent(item.probability)}</td><td class="numeric">${percent(item.contributionToOutcome)}</td></tr>`).join('')}</tbody></table></div></details>`)}
+    ${section('Movimento quote', 'Apertura contro quota attuale', renderOddsMovement(analysis.governance.oddsMovement))}
     ${renderTimeline(analysis)}
     ${section('Fattori decisivi', 'Direzione, intensità e certezza', `<ul class="factor-list">${analysis.factors.map((factor) => `<li><strong>${escapeHtml(factor.name)}</strong><span>${escapeHtml(factor.direction)}</span><small>Impatto ${escapeHtml(factor.intensity)} · certezza ${escapeHtml(factor.certainty)}</small></li>`).join('')}</ul>`)}
     ${section('Scenari alternativi', 'Se la gara gira a favore di una squadra', `<div class="scenario-grid">${analysis.scenarios.map((scenario) => `<article class="scenario"><strong>${escapeHtml(scenario.name)}</strong><p><span>xG</span><b>${decimal(scenario.xg.home)}–${decimal(scenario.xg.away)}</b></p><p><span>1 · X · 2</span><b>${percent(scenario.probabilities.home, 0)} · ${percent(scenario.probabilities.draw, 0)} · ${percent(scenario.probabilities.away, 0)}</b></p><p><span>Goal</span><b>${percent(scenario.markets.goal)}</b></p><p><span>Over 2.5</span><b>${percent(scenario.markets.over25)}</b></p></article>`).join('')}</div>`)}
-    ${section('Modelli e pesi', 'Solo i modelli con dati disponibili entrano nella media', `<ul class="agent-list">${activeModels.map((agent) => `<li><strong>${escapeHtml(agent.name)}</strong><span>${percent(agent.effectiveWeight, 0)}</span><small>1 ${percent(agent.probabilities.home, 0)} · X ${percent(agent.probabilities.draw, 0)} · 2 ${percent(agent.probabilities.away, 0)}</small></li>`).join('')}${missingModels.map((agent) => `<li><strong>${escapeHtml(agent.name)}</strong><span class="signal-muted">Escluso</span><small>Dati insufficienti.</small></li>`).join('')}</ul>`, { badge: `${activeModels.length}/${analysis.agents.length}` })}
+    ${section('Modelli e pesi', 'Solo i modelli con dati disponibili entrano nella media', `<ul class="agent-list">${activeModels.map((agent) => `<li><strong>${escapeHtml(agent.name)}</strong><span>${percent(agent.effectiveWeight, 0)}</span><small>1 ${percent(agent.probabilities.home, 0)} · X ${percent(agent.probabilities.draw, 0)} · 2 ${percent(agent.probabilities.away, 0)}</small></li>`).join('')}${missingModels.map((agent) => `<li><strong>${escapeHtml(agent.name)}</strong><span class="signal-muted">${agent.unavailableReason ? 'Non disponibile' : 'Escluso'}</span><small>${escapeHtml(agent.unavailableReason || 'Dati insufficienti.')}</small></li>`).join('')}</ul>`, { badge: `${activeModels.length}/${analysis.agents.length}` })}
     ${section('Rischi e contestazioni', 'Cosa può invalidare la previsione', `<ul class="risk-list">${riskItems.map((risk) => `<li>${escapeHtml(risk)}</li>`).join('')}</ul>`, { badge: `${riskItems.length}` })}
     ${section('Separazione dei dati', 'Dati osservati, modello e indicazione finale', renderLayers(analysis))}
-    ${section('Processo multi-agente', 'Ogni modulo dichiara se ha lavorato', `<div class="workflow-grid">${analysis.workflow.map((agent) => `<article class="workflow-agent ${agent.active ? 'active' : 'inactive'}"><span>${agent.active ? 'Attivo' : 'Escluso'}</span><strong>${escapeHtml(agent.name)}</strong><p>${escapeHtml(agent.note)}</p></article>`).join('')}</div>`, { badge: `${workflowActive}/${analysis.workflow.length}` })}
+    ${section('Processo multi-agente', 'Ogni modulo dichiara se ha lavorato', `<div class="workflow-grid">${analysis.workflow.map((agent) => { const status = agent.status || (agent.active ? 'active' : 'inactive'); return `<article class="workflow-agent ${status}"><span>${status === 'active' ? 'Attivo' : status === 'unavailable_source' ? 'Non disponibile' : 'Escluso'}</span><strong>${escapeHtml(agent.name)}</strong><p>${escapeHtml(agent.note)}</p></article>`; }).join('')}</div>`, { badge: `${workflowActive}/${analysis.workflow.length}` })}
     ${section('Audit', 'Tracciabilità del calcolo', `<div class="table-scroll"><table class="data-table"><tbody>
       <tr><td>Simulazioni Monte Carlo</td><td class="numeric"><strong>${analysis.simulation.runs.toLocaleString('it-IT')}</strong></td></tr>
       <tr><td>Qualità dati</td><td class="numeric"><strong>${governance.dataQuality.score}/100</strong></td></tr>
@@ -547,11 +606,37 @@ function renderAnalysis(analysis) {
       <label class="switch" for="resultNeutral"><input id="resultNeutral" type="checkbox" ${analysis.options.neutral ? 'checked' : ''}><span aria-hidden="true"></span>Campo neutro</label>
       ${aiActive() ? '<button class="secondary-button" type="button" data-result-action="ai">Ricalcola con agenti AI</button>' : '<button class="secondary-button" type="button" data-result-action="recalc">Ricalcola</button>'}
     </section>
+    <div class="share-actions"><button class="secondary-button" type="button" data-result-action="calendar">Aggiungi al Calendario</button><button class="secondary-button" type="button" data-result-action="share">Condividi</button></div>
     <div class="result-actions"><button class="secondary-button" type="button" data-result-action="json">Esporta JSON</button><button class="secondary-button" type="button" data-result-action="print">Stampa / PDF</button></div>
     <div class="audit-footer"><span>${escapeHtml(governance.disclaimer)}</span><span>Analisi del ${escapeHtml(formatDateTime(analysis.generatedAt))}${analysis.cached ? ' · dalla cache' : ''}</span></div>`;
 
   // Le larghezze passano dal CSSOM: compatibile con la Content-Security-Policy senza stili inline.
   elements.analysisResult.querySelectorAll('[data-width]').forEach((node) => { node.style.width = `${Number(node.dataset.width)}%`; });
+  elements.analysisResult.querySelectorAll('[data-alpha]').forEach((node) => { node.style.backgroundColor = `color-mix(in srgb, var(--accent) ${Math.round(Number(node.dataset.alpha) * 100)}%, var(--surface-2))`; node.style.color = Number(node.dataset.alpha) > 0.55 ? 'var(--accent-ink)' : 'var(--text)'; });
+  elements.analysisResult.querySelectorAll('[data-team-star]').forEach((button) => button.addEventListener('click', () => {
+    const on = favorites.toggle('team', button.dataset.teamStar);
+    button.setAttribute('aria-pressed', String(on));
+    button.textContent = on ? '★' : '☆';
+    renderFixtures();
+  }));
+  elements.analysisResult.querySelectorAll('[data-league-star]').forEach((button) => button.addEventListener('click', () => {
+    const on = favorites.toggle('league', button.dataset.leagueStar);
+    button.setAttribute('aria-pressed', String(on));
+    button.textContent = `${on ? '★' : '☆'} Competizione preferita: ${fixture.league.name}`;
+    renderFixtures();
+  }));
+  elements.analysisResult.querySelector('[data-result-action="calendar"]')?.addEventListener('click', () => {
+    downloadFile(`partita-${slug(`${fixture.home.name}-${fixture.away.name}`)}.ics`, icsForFixture(fixture), 'text/calendar').catch((error) => { elements.appStatus.textContent = error.message; });
+  });
+  elements.analysisResult.querySelector('[data-result-action="share"]')?.addEventListener('click', async () => {
+    const text = shareText(analysis);
+    try {
+      if (navigator.share) await navigator.share({ title: `${fixture.home.name} - ${fixture.away.name}`, text });
+      else { await navigator.clipboard.writeText(text); elements.appStatus.textContent = 'Analisi copiata negli appunti.'; }
+    } catch (error) {
+      if (error?.name !== 'AbortError') elements.appStatus.textContent = 'Condivisione non disponibile.';
+    }
+  });
   const recalc = (useAi) => {
     elements.neutralToggle.checked = elements.analysisResult.querySelector('#resultNeutral')?.checked || false;
     analyzeSelected({ useAi });

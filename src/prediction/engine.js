@@ -263,7 +263,13 @@ function workflowAgents(bundle, quality, neutral, ai = null) {
     const agent = aiById[id];
     if (!agent) return [false, missingNote];
     const active = agent.status === 'completed' || agent.status === 'insufficient_data';
-    return [active, `${agent.status}${agent.cacheHit ? ' · cache' : ''}${agent.errorCode ? ` · ${agent.errorCode}` : ''}`];
+    const label = {
+      completed: 'Completato',
+      insufficient_data: 'Dati insufficienti per questa partita',
+      skipped: 'AI non attiva: inserisci una chiave nelle Impostazioni',
+      error: 'Errore'
+    }[agent.status] || agent.status;
+    return [active, `${label}${agent.cacheHit ? ' · cache' : ''}${agent.errorCode ? ` · ${agent.errorCode}` : ''}`];
   };
   const [tacticalActive, tacticalNote] = aiState('tactical_context', 'AI non eseguita o dati tattici insufficienti.');
   const [newsActive, newsNote] = aiState('news_intelligence', 'Nessun feed editoriale verificabile configurato.');

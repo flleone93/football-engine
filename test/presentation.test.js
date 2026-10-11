@@ -67,3 +67,13 @@ test('modello esterno non fornito dalla fonte: motivo esplicito', async () => {
   assert.equal(external.unavailableReason, 'Nessuna previsione esterna nella fonte pubblica.');
   assert.equal(analysis.agents.find((agent) => agent.id === 'poisson').unavailableReason, null);
 });
+
+test('agenti AI non eseguiti: nota comprensibile invece dello stato tecnico', async () => {
+  const bundle = await new DemoProvider().getAnalysisBundle('demo-mls');
+  const ai = { agents: [{ agentId: 'tactical_context', status: 'skipped' }, { agentId: 'news_intelligence', status: 'insufficient_data' }, { agentId: 'competition_context', status: 'error', errorCode: 'anthropic_401' }] };
+  const analysis = analyzeMatch(bundle, { ai }, buildConfig({ DEMO_MODE: 'true' }));
+  const note = (name) => analysis.workflow.find((item) => item.name === name).note;
+  assert.match(note('Lineups & Tactical AI'), /AI non attiva/);
+  assert.match(note('News Intelligence AI'), /Dati insufficienti/);
+  assert.match(note('Competition Context AI'), /Errore.*anthropic_401/);
+});
