@@ -1076,7 +1076,7 @@ function renderJournal() {
   const fractionOptions = [[0.125, '1/8'], [0.25, '1/4'], [0.5, '1/2']].map(([value, label]) => `<option value="${value}" ${settings.kellyMultiplier === value ? 'selected' : ''}>${label}</option>`).join('');
   const num = (value) => (value == null ? '' : String(value).replace('.', ','));
   node.innerHTML = section('Le mie giocate', 'Profitto, ROI e CLV delle giocate registrate', `
-    ${payload.storage === 'memory' ? '<div class="notice" role="note">Il diario resta solo per questa sessione: l’archiviazione del browser non è disponibile qui.</div>' : ''}
+    ${payload.storage === 'memory' ? '<div class="notice" role="note">Il diario resta solo finché l’app è aperta: qui non c’è un archivio permanente (demo, Artifact o navigazione privata).</div>' : ''}
     <div class="metric-grid">
       <article class="metric-card"><span>Giocate</span><strong>${summary.count}</strong></article>
       <article class="metric-card"><span>Profitto</span><strong class="${summary.profit > 0 ? 'signal-positive' : summary.profit < 0 ? 'signal-negative' : ''}">${currency(summary.profit)}</strong></article>
@@ -1119,8 +1119,9 @@ function renderJournal() {
         bankroll: form.bankroll.value, kellyMultiplier: Number(form.kellyMultiplier.value),
         maxStakePct: pct ? Number(pct) / 100 : '', dailyLossLimit: form.dailyLossLimit.value, weeklyLossLimit: form.weeklyLossLimit.value
       });
-      statusNode.textContent = 'Salvato.';
       await loadJournal();
+      const fresh = elements.journalResult.querySelector('[data-settings-status]');
+      if (fresh) { fresh.textContent = 'Salvato. Le puntate consigliate usano i nuovi valori.'; fresh.closest('details').open = true; }
     } catch (error) {
       statusNode.textContent = error.message;
     }
