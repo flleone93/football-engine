@@ -227,16 +227,20 @@ function lineupsFrom(rosters) {
   return { home, away, confirmed: home.length >= 11 && away.length >= 11 };
 }
 
-/** Partite concluse della stessa stagione della gara (`season.slug`), giocate prima del suo calcio d'inizio. */
+/**
+ * Partite concluse della stessa stagione della gara, giocate prima del suo calcio d'inizio.
+ * La stagione è `season.year`: `season.slug` indica solo la fase (girone, playoff, "regular-season") e si ripete ogni anno.
+ */
 export function seasonMatchesFromEvents(events, { eventId, kickoff }) {
   const target = events.find((event) => String(event.id) === String(eventId));
-  const season = target?.season?.slug || null;
-  if (!season) return { season: null, matches: [] };
+  const year = target?.season?.year;
+  if (year == null) return { season: null, matches: [] };
+  const season = String(year);
   const before = Date.parse(kickoff);
   const matches = [];
   for (const event of events) {
     const competition = event.competitions?.[0];
-    if (event.season?.slug !== season || !competition?.status?.type?.completed || !(Date.parse(event.date) < before)) continue;
+    if (String(event.season?.year) !== season || !competition?.status?.type?.completed || !(Date.parse(event.date) < before)) continue;
     const home = competition.competitors?.find((item) => item.homeAway === 'home');
     const away = competition.competitors?.find((item) => item.homeAway === 'away');
     const goals = (team) => Number(team?.score?.value ?? team?.score);
