@@ -724,9 +724,9 @@ const ensemble = {
 };
 const file = path.join(root, 'src/prediction/ensembleWeights.js');
 const source = fs.readFileSync(file, 'utf8');
-const marker = 'const ENSEMBLE = DEFAULT_ENSEMBLE;';
-if (!source.includes(marker) && !source.includes('const ENSEMBLE = Object.freeze(')) throw new Error('ensembleWeights.js: marcatore non trovato');
-const replaced = source.replace(/const ENSEMBLE = (DEFAULT_ENSEMBLE|Object\.freeze\([\s\S]*?\));\n/, `const ENSEMBLE = Object.freeze(${JSON.stringify(ensemble, null, 2)});\n`);
+const marker = 'export const ENSEMBLE = DEFAULT_ENSEMBLE;';
+if (!source.includes(marker) && !source.includes('export const ENSEMBLE = Object.freeze(')) throw new Error('ensembleWeights.js: marcatore non trovato');
+const replaced = source.replace(/export const ENSEMBLE = (DEFAULT_ENSEMBLE|Object\.freeze\([\s\S]*?\));\n/, `export const ENSEMBLE = Object.freeze(${JSON.stringify(ensemble, null, 2)});\n`);
 fs.writeFileSync(file, replaced);
 const fmt = (value) => (value == null ? '—' : value.toFixed(4));
 const table = (name, m) => `| ${name} | ${m.n} | ${fmt(m.brier)} | ${fmt(m.logLoss)} | ${fmt(m.rps)} | ${m.accuracy == null ? '—' : (m.accuracy * 100).toFixed(1) + '%'} |`;

@@ -161,7 +161,8 @@ export function buildAgentEvidencePack(bundle, baseline, agentId) {
       factors: detailedBaseline || agentId === 'tactical_context' || agentId === 'competition_context' ? baseline.factors.filter((factor) => factor.name !== 'Rating Elo') : [],
       dataQuality: baseline.governance.dataQuality,
       riskFlags: baseline.governance.riskFlags,
-      modelAgents: detailedBaseline ? baseline.agents : []
+      // Elo solo informativo per gli agenti (spec 7.3): non deve diventare una correzione di probabilità.
+      modelAgents: detailedBaseline ? baseline.agents.filter((agent) => agent.id !== 'elo') : []
     }
   };
 }

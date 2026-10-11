@@ -4,6 +4,8 @@ import { runMonteCarlo } from './monteCarlo.js';
 import { buildRecommendation } from './recommendation.js';
 import { formFromRecent, oddsMovementFromOdds, scoreGridFromMatrix } from './presentation.js';
 import { weatherSummary } from '../providers/weather.js';
+import { eloExpectation, eloOutcomes } from './elo.js';
+import { resolveEnsemble } from './ensembleWeights.js';
 
 function oddsProbability(odds, keys) {
   if (!odds?.values) return null;
@@ -48,6 +50,14 @@ function enforceSourceWeightCaps(sources) {
     .reduce((sum, source) => sum + source.weight, 0);
   h2h.weight = Math.min(h2h.weight, otherWeight * 0.07 / 0.93);
   return adjusted;
+}
+
+/** Miscela unica usata da motore e banco di prova: limite agli scontri diretti, poi media pesata delle fonti presenti. */
+export function mixOutcomes(probabilitiesById, weights) {
+  const sources = Object.entries(probabilitiesById).map(([id, probabilities]) => ({ id, weight: Number(weights[id]) || 0, probabilities }));
+  const active = sources.filter((source) => source.probabilities && source.weight > 0);
+  if (!active.length) return null;
+  return blendOutcomes(enforceSourceWeightCaps(sources));
 }
 
 export function inferLambdas(bundle, neutral) {
@@ -330,18 +340,24 @@ export function analyzeMatch(bundle, options, config) {
   const poisson = outcomesFromMatrix(poissonMatrix);
   const monteCarlo = runMonteCarlo({ fixtureId: bundle.fixture.id, homeLambda: lambdas.home, awayLambda: lambdas.away, runs: config.monteCarloRuns });
   const market = marketModel(bundle, config.devigMethod);
+  const ensemble = resolveEnsemble();
+  const weights = options?.weights ? { ...Object.fromEntries(Object.keys(ensemble.config.weights).map((id) => [id, 0])), ...options.weights } : ensemble.config.weights;
+  const eloView = bundle.elo ? { ...bundle.elo, expectedHome: round(eloExpectation(bundle.elo.home.rating, bundle.elo.away.rating, { neutral, homeAdvantage: bundle.elo.homeAdvantage ?? 60 }), 4) } : null;
   const sources = enforceSourceWeightCaps([
-    { id: 'poisson', agent: 'Poisson/Dixon-Coles', weight: 25, probabilities: poisson },
-    { id: 'montecarlo', agent: 'Monte Carlo', weight: 15, probabilities: monteCarlo.probabilities },
-    { id: 'market', agent: 'Market Odds', weight: 25, probabilities: market.probabilities },
-    { id: 'form', agent: 'Recent Form', weight: 18, probabilities: formModel(bundle, neutral) },
-    { id: 'provider', agent: 'External Prediction', weight: 10, probabilities: providerModel(bundle) },
-    { id: 'h2h', agent: 'Historical Matchup', weight: 7, probabilities: h2hModel(bundle) }
+    { id: 'poisson', agent: 'Poisson/Dixon-Coles', weight: weights.poisson, probabilities: poisson },
+    { id: 'montecarlo', agent: 'Monte Carlo', weight: weights.montecarlo, probabilities: monteCarlo.probabilities },
+    { id: 'market', agent: 'Market Odds', weight: weights.market, probabilities: market.probabilities },
+    { id: 'form', agent: 'Recent Form', weight: weights.form, probabilities: formModel(bundle, neutral) },
+    { id: 'provider', agent: 'External Prediction', weight: weights.provider, probabilities: providerModel(bundle) },
+    { id: 'h2h', agent: 'Historical Matchup', weight: weights.h2h, probabilities: h2hModel(bundle) },
+    { id: 'elo', agent: 'Elo Rating', weight: weights.elo, probabilities: eloView ? eloOutcomes(eloView.expectedHome, options?.eloDrawBase ?? ensemble.config.eloDrawBase) : null }
   ]);
-  const finalOutcomes = blendOutcomes(sources);
+  const finalOutcomes = mixOutcomes(Object.fromEntries(sources.map((source) => [source.id, source.probabilities])), weights)
+    || mixOutcomes(Object.fromEntries(sources.map((source) => [source.id, source.probabilities])), resolveEnsemble(null).config.weights);
   const calibratedMatrix = calibrateMatrixToOutcomes(poissonMatrix, finalOutcomes);
   const markets = marketsFromMatrix(calibratedMatrix);
-  const consensus = sourceConsensus(sources);
+  const weightedSources = sources.filter((source) => source.probabilities && source.weight > 0);
+  const consensus = sourceConsensus(weightedSources);
   const robustness = clamp(0.8 - Math.abs(lambdas.home - lambdas.away) * 0.06, 0.58, 0.86);
   let confidence = quality.score * 0.45 + consensus * 100 * 0.3 + robustness * 100 * 0.15 + 10;
   if (!bundle.lineups?.confirmed) confidence -= 7;
@@ -354,13 +370,14 @@ export function analyzeMatch(bundle, options, config) {
   const progression = buildProgression(bundle, lambdas, finalOutcomes);
   const timeline = buildTimeline(lambdas.home, lambdas.away);
   const uncertainty = uncertaintyReport(finalOutcomes);
-  const activeSources = sources.filter((source) => source.probabilities);
+  const activeSources = weightedSources;
   const activeWeight = activeSources.reduce((sum, source) => sum + source.weight, 0);
   const sourceKeyByModel = { market: 'odds', provider: 'prediction', h2h: 'h2h', form: 'recentHome' };
   const agents = sources.map((source) => ({
     id: source.id, name: source.agent, active: Boolean(source.probabilities),
+    excludedByData: Boolean(source.probabilities) && !(source.weight > 0),
     unavailableReason: source.probabilities ? null : (bundle.sourceStatus?.[sourceKeyByModel[source.id]]?.error || null),
-    effectiveWeight: source.probabilities ? round(source.weight / activeWeight, 4) : 0,
+    effectiveWeight: source.probabilities && source.weight > 0 ? round(source.weight / activeWeight, 4) : 0,
     probabilities: source.probabilities ? Object.fromEntries(Object.entries(source.probabilities).map(([key, value]) => [key, round(value, 4)])) : null
   }));
   const modelLeans = activeSources.map((source) => {
@@ -416,7 +433,7 @@ export function analyzeMatch(bundle, options, config) {
     progression,
     timeline,
     scenarios,
-    factors: decisiveFactors(bundle, lambdas, sources, neutral),
+    factors: decisiveFactors({ ...bundle, elo: eloView }, lambdas, sources, neutral),
     agents,
     workflow: workflowAgents(bundle, quality, neutral, options?.ai),
     governance: {
@@ -432,7 +449,9 @@ export function analyzeMatch(bundle, options, config) {
         empiricallyBacktested: false,
         note: 'La matrice score e coerente con l’ensemble 1X2; non e applicata una curva empirica per competizione senza uno storico validato.'
       },
-      mathVersion: '2.3.0',
+      mathVersion: '2.4.0',
+      modelVersion: ensemble.config.version,
+      ensemble: { version: ensemble.config.version, weights, fallback: ensemble.fallback },
       lambdaBaseline: baseLambdas,
       lambdaAdjustmentApplied: { home: round(lambdas.home - baseLambdas.home, 3), away: round(lambdas.away - baseLambdas.away, 3) },
       disclaimer: 'Previsione probabilistica, non garanzia di risultato o profitto. Solo per maggiorenni; gioca responsabilmente.'
@@ -446,7 +465,7 @@ export function analyzeMatch(bundle, options, config) {
       form: { home: formFromRecent(bundle.recentHome), away: formFromRecent(bundle.recentAway) },
       standings: bundle.standingsContext || { home: null, away: null },
       weather: bundle.weather || null,
-      elo: bundle.elo || null
+      elo: eloView
     }
   };
 }

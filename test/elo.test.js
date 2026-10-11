@@ -102,7 +102,8 @@ test('motore: Elo mostrato e tra i fattori, ensemble invariato', async () => {
   const elo = { home: { rating: 1600, games: 8 }, away: { rating: 1450, games: 8 }, expectedHome: 0.7, matches: 40, season: '2026-27', k: 20, homeAdvantage: 60 };
   const withElo = analyzeMatch({ ...bundle, elo }, { neutral: true }, config);
   assert.deepEqual(withElo.summary.outcomes, without.summary.outcomes, 'l Elo non entra nell ensemble');
-  assert.deepEqual(withElo.context.elo, elo);
+  assert.deepEqual([withElo.context.elo.home, withElo.context.elo.away], [elo.home, elo.away]);
+  assert.ok(Math.abs(withElo.context.elo.expectedHome - 1 / (1 + 10 ** (-150 / 400))) < 1e-3, 'campo neutro: attesa ricalcolata senza vantaggio casa');
   assert.equal(without.context.elo, null);
   const factor = withElo.factors.find((item) => item.name === 'Rating Elo');
   assert.equal(factor.direction, bundle.fixture.home.name);

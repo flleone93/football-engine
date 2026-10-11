@@ -1,5 +1,6 @@
 import { clamp, round } from '../utils.js';
 import { devig } from './probability.js';
+import { ENSEMBLE } from './ensembleWeights.js';
 import { kellyFraction } from './staking.js';
 
 export const LABELS = {
@@ -53,7 +54,8 @@ export function buildRecommendation(modelMarkets, odds, confidence, method = 'pr
   const byKey = Object.fromEntries(candidates.map((item) => [item.key, item]));
   // Segno 1X2 più probabile; a parità vince l'ordine 1, 2, X (scelta deterministica).
   const selected = ['1', '2', 'X'].map((key) => byKey[key]).reduce((best, item) => (item.probability > best.probability ? item : best));
-  const hasValue = selected.edge != null && selected.edge >= 0.025 && selected.expectedValue != null && selected.expectedValue >= 0.03;
+  const { edge: edgeThreshold, ev: evThreshold } = ENSEMBLE.valueThresholds;
+  const hasValue = selected.edge != null && selected.edge >= edgeThreshold && selected.expectedValue != null && selected.expectedValue >= evThreshold;
   return {
     ...selected,
     hasValue,

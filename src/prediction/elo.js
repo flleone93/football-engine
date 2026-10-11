@@ -48,3 +48,12 @@ export function eloForFixture(matches, { homeId, awayId, neutral = false }, opti
     matches: matches.length
   };
 }
+/** Probabilità 1X2 dall'attesa Elo: pareggio massimo a squadre pari, limitato a [0,12; 0,34]. */
+export function eloOutcomes(expectedHome, drawBase = 0.3) {
+  const e = Math.min(1, Math.max(0, Number(expectedHome)));
+  const draw = Math.min(0.34, Math.max(0.12, drawBase * (1 - Math.abs(2 * e - 1)) ** 1.5));
+  const home = Math.max(0, e - draw / 2);
+  const away = Math.max(0, 1 - e - draw / 2);
+  const total = home + draw + away;
+  return { home: home / total, draw: draw / total, away: away / total };
+}
