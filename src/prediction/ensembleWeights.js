@@ -87,3 +87,12 @@ export function resolveEnsemble(candidate = ENSEMBLE) {
     && Number.isFinite(candidate.eloDrawBase) && Number.isFinite(candidate.valueThresholds?.edge) && Number.isFinite(candidate.valueThresholds?.ev);
   return valid ? { config: candidate, fallback: false } : { config: DEFAULT_ENSEMBLE, fallback: true };
 }
+
+/** Soglie del "Valore" solo se valide; altrimenti quelle manuali (stesso controllo dei pesi). */
+export function valueThresholdsFrom(candidate = ENSEMBLE) {
+  const thresholds = candidate?.valueThresholds;
+  return Number.isFinite(thresholds?.edge) && Number.isFinite(thresholds?.ev) ? { edge: thresholds.edge, ev: thresholds.ev } : { ...DEFAULT_ENSEMBLE.valueThresholds };
+}
+
+/** Pesi da usare quando mancano le quote: i manuali, migliori sul banco di prova a mercato nascosto (log loss 1,0544 contro 1,0558). */
+export const NO_MARKET_WEIGHTS = DEFAULT_ENSEMBLE.weights;

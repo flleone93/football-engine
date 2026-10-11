@@ -5,7 +5,7 @@ import { buildRecommendation } from './recommendation.js';
 import { formFromRecent, oddsMovementFromOdds, scoreGridFromMatrix } from './presentation.js';
 import { weatherSummary } from '../providers/weather.js';
 import { eloExpectation, eloOutcomes } from './elo.js';
-import { resolveEnsemble } from './ensembleWeights.js';
+import { NO_MARKET_WEIGHTS, resolveEnsemble } from './ensembleWeights.js';
 
 function oddsProbability(odds, keys) {
   if (!odds?.values) return null;
@@ -341,7 +341,10 @@ export function analyzeMatch(bundle, options, config) {
   const monteCarlo = runMonteCarlo({ fixtureId: bundle.fixture.id, homeLambda: lambdas.home, awayLambda: lambdas.away, runs: config.monteCarloRuns });
   const market = marketModel(bundle, config.devigMethod);
   const ensemble = resolveEnsemble();
-  const weights = options?.weights ? { ...Object.fromEntries(Object.keys(ensemble.config.weights).map((id) => [id, 0])), ...options.weights } : ensemble.config.weights;
+  const noMarket = !options?.weights && !market.probabilities;
+  const weights = options?.weights
+    ? { ...Object.fromEntries(Object.keys(ensemble.config.weights).map((id) => [id, 0])), ...options.weights }
+    : (noMarket ? NO_MARKET_WEIGHTS : ensemble.config.weights);
   const eloView = bundle.elo ? { ...bundle.elo, expectedHome: round(eloExpectation(bundle.elo.home.rating, bundle.elo.away.rating, { neutral, homeAdvantage: bundle.elo.homeAdvantage ?? 60 }), 4) } : null;
   const sources = enforceSourceWeightCaps([
     { id: 'poisson', agent: 'Poisson/Dixon-Coles', weight: weights.poisson, probabilities: poisson },
@@ -451,7 +454,7 @@ export function analyzeMatch(bundle, options, config) {
       },
       mathVersion: '2.4.0',
       modelVersion: ensemble.config.version,
-      ensemble: { version: ensemble.config.version, weights, fallback: ensemble.fallback },
+      ensemble: { version: ensemble.config.version, weights, fallback: ensemble.fallback, noMarket },
       lambdaBaseline: baseLambdas,
       lambdaAdjustmentApplied: { home: round(lambdas.home - baseLambdas.home, 3), away: round(lambdas.away - baseLambdas.away, 3) },
       disclaimer: 'Previsione probabilistica, non garanzia di risultato o profitto. Solo per maggiorenni; gioca responsabilmente.'

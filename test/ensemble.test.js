@@ -57,3 +57,27 @@ test('motore: pesi da options, fonte a peso 0 esclusa, Elo come fonte, campo neu
   assert.equal(home.governance.modelVersion, ENSEMBLE.version);
   assert.equal(home.governance.mathVersion, '2.4.0');
 });
+
+test('soglie del Valore lette attraverso il controllo di validità', async () => {
+  const { valueThresholdsFrom } = await import('../src/prediction/ensembleWeights.js');
+  assert.deepEqual(valueThresholdsFrom({ weights: { market: 1 }, valueThresholds: { edge: null } }), { edge: 0.025, ev: 0.03 });
+  assert.deepEqual(valueThresholdsFrom({}), { edge: 0.025, ev: 0.03 });
+});
+
+test('partita senza quote: pesi senza mercato (manuali, validati meglio sul banco di prova)', async () => {
+  const base = await new DemoProvider().getAnalysisBundle('demo-france-spain');
+  const analysis = analyzeMatch({ ...base, odds: null, sourceStatus: { ...base.sourceStatus, odds: { available: false } } }, { neutral: true }, config);
+  const weight = (id) => analysis.agents.find((agent) => agent.id === id).effectiveWeight;
+  assert.ok(weight('poisson') > 0.2, 'Poisson torna a pesare senza quote');
+  assert.equal(analysis.governance.ensemble.noMarket, true);
+});
+
+test('mercati gol: edge non validati, niente Kelly', async () => {
+  const { buildRecommendation } = await import('../src/prediction/recommendation.js');
+  const markets = { '1': 0.4, X: 0.3, '2': 0.3, '1X': 0.7, X2: 0.6, GOAL: 0.6, NO_GOAL: 0.4, OVER_1_5: 0.8, UNDER_1_5: 0.2, OVER_2_5: 0.6, UNDER_2_5: 0.4 };
+  const result = buildRecommendation(markets, { values: { '1': 2.6, X: 3.3, '2': 2.8, GOAL: 1.9, NO_GOAL: 1.9, OVER_2_5: 2.1, UNDER_2_5: 1.75 } }, 60, 'shin');
+  const over = result.candidates.find((item) => item.key === 'OVER_2_5');
+  assert.equal(over.validated, false);
+  assert.equal(over.kellyFraction, null);
+  assert.equal(result.candidates.find((item) => item.key === '1').validated, true);
+});

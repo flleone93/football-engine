@@ -434,7 +434,7 @@ function renderMarkets(markets, selectedKey) {
     <span class="market-name">${escapeHtml(market.label)}</span>
     <span class="market-prob">${percent(market.probability)}</span>
     <span class="market-meter"><span data-width="${Math.round(market.probability * 1000) / 10}"></span></span>
-    <span class="market-meta"><span>Quota <b>${market.odd ? decimal(market.odd) : '—'}</b></span><span>Mercato <b>${market.marketProbability == null ? '—' : percent(market.marketProbability)}</b></span><span>Edge <b class="${probabilityClass(market.edge)}">${market.edge == null ? '—' : signedPercent(market.edge)}</b></span></span>
+    <span class="market-meta"><span>Quota <b>${market.odd ? decimal(market.odd) : '—'}</b></span><span>Mercato <b>${market.marketProbability == null ? '—' : percent(market.marketProbability)}</b></span>${market.validated === false && market.edge != null ? '<span class="signal-muted">edge non validato (mercato gol)</span>' : `<span>Edge <b class="${probabilityClass(market.edge)}">${market.edge == null ? '—' : signedPercent(market.edge)}</b></span>`}</span>
   </div>`).join('')}</div>`;
 }
 

@@ -39,6 +39,7 @@ Il progetto è una base eseguibile e pubblicabile per un motore ibrido di previs
 | Solo mercato | 0,603 | 1,008 | 49,1% |
 - Regole fissate prima dei numeri: Elo solo con almeno 0,002 di log loss in meno (misurato 0,0006 → escluso); soglia "Valore" invariata (0 segnali dopo la correzione). Prima della correzione il "Valore" sulla verifica dava 364 segnali con ROI −11,7%: il segnale era rumore del modello.
 - Pesi e soglie in `src/prediction/ensembleWeights.js` (versione `dati-2026-10-11`), con ripiego automatico sui pesi manuali se il file fosse malformato; `governance.ensemble` e `modelVersion` in ogni analisi e nello Storico.
+- Dalla revisione indipendente: senza quote il motore usa i pesi manuali (migliori a mercato nascosto: 1,0544 contro 1,0558); i mercati gol mostrano edge "non validato" e niente Kelly; soglie del Valore lette con controllo di validità.
 - Rilievi minori chiusi: Brier del motore sullo stesso campione del mercato; Elo ricalcolato col campo neutro forzato; "Elo non disponibile" con motivo.
 - Limiti dichiarati: nel banco di prova la forma è solo di campionato e le quote sono di chiusura; la stima del pareggio Elo è al limite della griglia (0,34) ma l'Elo è comunque escluso.
 

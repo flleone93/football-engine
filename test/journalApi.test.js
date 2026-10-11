@@ -21,7 +21,7 @@ test('diario via API: aggiungi dopo l analisi, leggi, elimina', async () => {
   const { call } = setup();
   await assert.rejects(call('POST', '/api/journal', { fixtureId: 'demo-france-spain', marketKey: '1', oddTaken: 2, stake: 5 }), { code: 'validation_error', message: /Analizza la partita/ });
   const analysis = (await call('POST', '/api/analyze', { fixtureId: 'demo-france-spain', useAi: false })).payload;
-  const quoted = analysis.markets.find((market) => market.odd > 1);
+  const quoted = analysis.markets.find((market) => market.odd > 1 && market.validated);
   assert.equal(typeof quoted.kellyFraction, 'number');
   const added = await call('POST', '/api/journal', { fixtureId: 'demo-france-spain', marketKey: quoted.key, oddTaken: '2,05', stake: '10' });
   assert.equal(added.status, 200);

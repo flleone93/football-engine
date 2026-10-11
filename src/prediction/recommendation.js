@@ -1,6 +1,6 @@
 import { clamp, round } from '../utils.js';
 import { devig } from './probability.js';
-import { ENSEMBLE } from './ensembleWeights.js';
+import { valueThresholdsFrom } from './ensembleWeights.js';
 import { kellyFraction } from './staking.js';
 
 export const LABELS = {
@@ -32,6 +32,8 @@ function marketProbabilities(odds, method) {
   return { probabilities, fallbacks };
 }
 
+const VALIDATED_MARKETS = new Set(['1', 'X', '2', '1X', 'X2']);
+
 export function buildRecommendation(modelMarkets, odds, confidence, method = 'proportional') {
   const { probabilities: market, fallbacks: devigFallbacks } = marketProbabilities(odds, method);
   const reliability = { '1': 1, X: 0.9, '2': 1, '1X': 0.9, X2: 0.9, GOAL: 0.88, NO_GOAL: 0.88, OVER_1_5: 0.82, UNDER_1_5: 0.82, OVER_2_5: 0.92, UNDER_2_5: 0.92 };
@@ -47,14 +49,16 @@ export function buildRecommendation(modelMarkets, odds, confidence, method = 'pr
       marketProbability: marketProbability == null ? null : round(marketProbability, 6),
       edge: edge == null ? null : round(edge, 6),
       expectedValue: expectedValue == null ? null : round(expectedValue, 4),
-      kellyFraction: odd > 1 ? round(kellyFraction(probability, odd), 6) : null,
+      // Solo 1X2 e doppie chance sono validati dal banco di prova; i mercati gol vengono dai gol attesi, non verificati.
+      validated: VALIDATED_MARKETS.has(key),
+      kellyFraction: odd > 1 && VALIDATED_MARKETS.has(key) ? round(kellyFraction(probability, odd), 6) : null,
       interval: [round(clamp(probability - uncertainty, 0, 1), 4), round(clamp(probability + uncertainty, 0, 1), 4)]
     };
   });
   const byKey = Object.fromEntries(candidates.map((item) => [item.key, item]));
   // Segno 1X2 più probabile; a parità vince l'ordine 1, 2, X (scelta deterministica).
   const selected = ['1', '2', 'X'].map((key) => byKey[key]).reduce((best, item) => (item.probability > best.probability ? item : best));
-  const { edge: edgeThreshold, ev: evThreshold } = ENSEMBLE.valueThresholds;
+  const { edge: edgeThreshold, ev: evThreshold } = valueThresholdsFrom();
   const hasValue = selected.edge != null && selected.edge >= edgeThreshold && selected.expectedValue != null && selected.expectedValue >= evThreshold;
   return {
     ...selected,
