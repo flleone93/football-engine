@@ -259,3 +259,26 @@ test('registro e Storico: giocate più sicure salvate e valutate, record vecchi 
   assert.equal(report.over15.averageProbability, 0.75);
   assert.deepEqual(evaluatePredictions([]).safer.doubleChance, { n: 0, hits: 0, hitRate: null, averageProbability: null });
 });
+
+test('timeline: linea del motore sulle stesse partite del mercato', () => {
+  const rec = (kickoff, outcome, market) => ({ fixture: { kickoff }, prediction: { outcomes: { home: 0.6, draw: 0.25, away: 0.15 }, marketOutcomes: market, recommendation: {} }, result: { outcome, goals: { home: 1, away: 0 } } });
+  const points = timeline([rec('2026-10-01T00:00:00Z', 'home', { home: 0.5, draw: 0.3, away: 0.2 }), rec('2026-10-02T00:00:00Z', 'away', null)], 50);
+  const hit = (1 - 0.6) ** 2 + 0.25 ** 2 + 0.15 ** 2;
+  assert.ok(Math.abs(points[1].modelOnMarketBrier - hit) < 1e-6, 'la partita senza mercato non entra nella linea di confronto');
+  assert.ok(points[1].brier > points[1].modelOnMarketBrier);
+});
+
+test('Storico per versione del modello: registrata e valutata, record vecchi come "precedente alla 2.2"', () => {
+  const ledger = new PredictionLedger();
+  const kickoff = new Date(Date.now() - 5 * HOUR).toISOString();
+  const analysis = fakeAnalysis({ id: 'mv1', kickoff, generatedAt: new Date(Date.now() - 8 * HOUR).toISOString() });
+  analysis.governance.modelVersion = 'dati-2026-10-11';
+  const record = ledger.record(analysis);
+  assert.equal(record.prediction.modelVersion, 'dati-2026-10-11');
+  const settled = [
+    { ...record, result: { outcome: 'home', goals: { home: 1, away: 0 } } },
+    { ...record, prediction: { ...record.prediction, modelVersion: undefined }, result: { outcome: 'away', goals: { home: 0, away: 1 } } }
+  ];
+  const groups = evaluatePredictions(settled).byModelVersion;
+  assert.deepEqual(groups.map((group) => [group.version, group.n]), [['dati-2026-10-11', 1], ['precedente alla 2.2', 1]]);
+});

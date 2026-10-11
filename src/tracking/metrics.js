@@ -187,8 +187,10 @@ export function timeline(records, window = 50) {
   ordered.forEach((record, index) => {
     const recent = ordered.slice(Math.max(0, index - window + 1), index + 1);
     const model = recent.map((item) => brierScore(normalized(item.prediction.outcomes), item.result.outcome));
-    const market = recent.filter((item) => normalized(item.prediction.marketOutcomes))
-      .map((item) => brierScore(normalized(item.prediction.marketOutcomes), item.result.outcome));
+    const withMarket = recent.filter((item) => normalized(item.prediction.marketOutcomes));
+    const market = withMarket.map((item) => brierScore(normalized(item.prediction.marketOutcomes), item.result.outcome));
+    // Confronto onesto: il motore sulle stesse partite in cui esiste la linea del mercato.
+    const modelOnMarket = withMarket.map((item) => brierScore(normalized(item.prediction.outcomes), item.result.outcome));
     const recommendation = record.prediction.recommendation || {};
     const hit = settleMarket(recommendation.key, record.result.goals);
     if (Number(recommendation.odd) > 1 && hit != null) {
@@ -200,6 +202,7 @@ export function timeline(records, window = 50) {
       n: index + 1,
       brier: round(average(model), 6),
       marketBrier: market.length ? round(average(market), 6) : null,
+      modelOnMarketBrier: modelOnMarket.length ? round(average(modelOnMarket), 6) : null,
       roi: bets ? round(profit / bets, 6) : null,
       bets
     });
@@ -263,6 +266,13 @@ export function evaluatePredictions(records) {
     },
     recommendations: recommendationReport(settled),
     safer: saferReport(settled),
+    byModelVersion: [...settled.reduce((map, record) => {
+      const version = record.prediction.modelVersion || 'precedente alla 2.2';
+      if (!map.has(version)) map.set(version, []);
+      map.get(version).push(record);
+      return map;
+    }, new Map()).entries()].map(([version, items]) => ({ version, ...scoreSet(items, (record) => record.prediction.outcomes) }))
+      .sort((left, right) => (left.version === 'precedente alla 2.2') - (right.version === 'precedente alla 2.2') || right.n - left.n),
     goalMarkets: goalMarketsReport(settled),
     timeline: timeline(settled),
     byCompetition: [...competitions.entries()]
