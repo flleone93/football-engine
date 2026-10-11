@@ -19,7 +19,9 @@ Il sistema produce analisi di singole partite e ranking Top 5/6/7 giornalieri co
 
 ## Stato Attuale
 
-Versione: `2.0.0`
+Versione: `2.1.0`
+
+Regola dell'Indicazione (2.1.0): segno 1X2 più probabile; `hasValue` solo sul segno scelto; `recommendation.safer` = doppia chance della favorita (quota equa stimata) e Over 1.5.
 
 Stack:
 

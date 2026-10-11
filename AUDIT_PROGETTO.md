@@ -2,7 +2,7 @@
 
 ## Esito
 
-Release verificata: `2.0.0`.
+Release verificata: `2.1.0`.
 
 Il progetto è una base eseguibile e pubblicabile per un motore ibrido di previsione calcistica. Il percorso demo funziona senza credenziali; il percorso live mantiene le chiavi nel backend; i calcoli restano deterministici e gli agenti AI possono solo proporre correzioni limitate e tracciate.
 
@@ -27,6 +27,13 @@ Il progetto è una base eseguibile e pubblicabile per un motore ibrido di previs
 | Alta | I nomi modello e il provider non entravano integralmente nella cache/audit | Provider e modelli effettivi sono inclusi in cache key, meta e trace |
 | Alta | Lo schema condiviso contiene vincoli non supportati dal subset JSON Schema Gemini | Aggiunta conversione deterministica dello schema e validazione applicativa post-risposta |
 | Alta | Interactions API conserva lo stato per impostazione predefinita | Ogni richiesta Gemini imposta esplicitamente `store=false` |
+
+## Rilievi Chiusi nella 2.1.0 (Indicazione sull'esito più probabile)
+
+- Difetto strutturale segnalato dall'utente: l'Indicazione sceglieva il mercato con più edge, non l'esito più probabile. Sullo snapshot reale dell'11/10/2026, in 90 indicazioni 1X2 su 104 il segno indicato non era il più probabile; sulle 16 partite reali concluse, l'Indicazione di allora ne aveva azzeccate 4, l'esito più probabile del motore 6, la doppia chance della favorita 11, l'Over 1.5 14.
+- Nuova regola in `buildRecommendation`: segno 1X2 più probabile, `hasValue` solo sul segno scelto, `safer` con doppia chance della favorita e Over 1.5. Misura dopo la correzione: 0 casi su 181 partite; "Valore" sul 10,2% delle partite con quote (prima 85%).
+- Registro e Storico salvano e valutano le giocate più sicure; i record precedenti senza `safer` sono esclusi da questa misura.
+- Verifica: 123 test automatici, test di proprietà su tutte le partite demo, simulatore iPhone sulla build locale.
 
 ## Rilievi Chiusi nella 2.0.0 (Fase 3: precisione)
 

@@ -2,7 +2,7 @@
 
 Creata da **Leone Francesco**.
 
-Versione 2.0.0. Motore ibrido per l'analisi probabilistica delle partite di calcio con dati reali: baseline statistica deterministica, cinque agenti AI con guardrail, Top Picks giornaliere, simulazione quote e validazione post-partita delle previsioni.
+Versione 2.1.0. Motore ibrido per l'analisi probabilistica delle partite di calcio con dati reali: baseline statistica deterministica, cinque agenti AI con guardrail, Top Picks giornaliere, simulazione quote e validazione post-partita delle previsioni.
 
 ## Quattro modi di usarlo
 
@@ -12,6 +12,13 @@ Versione 2.0.0. Motore ibrido per l'analisi probabilistica delle partite di calc
 | **App iPhone** | **Live** ESPN scaricato dal telefono | **Claude (consigliato)**, Gemini o OpenAI con la chiave salvata sul telefono | [flleone93.github.io/football-engine](https://flleone93.github.io/football-engine/) → Safari → Condividi → Aggiungi alla schermata Home |
 | **Server locale / Render** | **Live** ESPN senza chiave, oppure API-Football con chiave | Gemini o OpenAI con chiave lato server | `Avvia Football Engine - Live.command` oppure `npm start` |
 | **File offline** | Snapshot reale ESPN o dati demo | Spenti (sola baseline statistica) | `Football Engine v2.0.0 - Live offline.html` / `- Demo offline.html` |
+
+## Novità 2.1.0: Indicazione sull'esito più probabile
+
+- **L'Indicazione è il segno 1X2 più probabile** secondo il motore (a parità: 1, poi 2, poi X). Prima sceglieva l'esito con più vantaggio sulla quota: in 90 indicazioni 1X2 su 104 il segno suggerito non era il più probabile (esempio: Sassuolo–Milan indicava "1" al 33% con il Milan al 39%). Ora i casi sono 0.
+- **"Valore rilevato"** si accende solo se è proprio il segno indicato ad avere valore sulla quota: dall'85% delle partite al 10%. Il valore sugli altri segni resta visibile nella tabella "Mercati e quote".
+- **Giocate più sicure**, sempre entrambe sotto l'Indicazione: la doppia chance della favorita (con quota equa stimata dalle quote 1X2, perché ESPN non la fornisce) e l'Over 1.5.
+- **Storico**: nuove card con quante giocate più sicure vanno a segno; Condividi include le due giocate.
 
 ## Novità 2.0.0: precisione
 
