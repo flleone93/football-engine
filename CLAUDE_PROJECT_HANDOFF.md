@@ -19,7 +19,7 @@ Il sistema produce analisi di singole partite e ranking Top 5/6/7 giornalieri co
 
 ## Stato Attuale
 
-Versione: `1.11.0`
+Versione: `2.0.0`
 
 Stack:
 
@@ -102,6 +102,9 @@ File principali:
 - `src/tracking/metrics.js` (Brier, log loss, RPS, calibrazione, ROI)
 - `src/tracking/fileStorage.js` (persistenza JSONL, solo server)
 - `src/prediction/staking.js` (Kelly frazionario e puntata consigliata)
+- `src/prediction/elo.js` (Elo della stagione, informativo, fuori dall'ensemble)
+- `src/prediction/probability.js` → `devigShin`, `devig(entries, method)` (Shin con fallback proporzionale)
+- `src/tracking/metrics.js` → `timeline(records, window)` (Brier mobile e ROI cumulato)
 - `src/tracking/betJournal.js` (diario giocate, CLV, riepilogo, limiti di perdita)
 
 ## Agenti AI

@@ -18,8 +18,8 @@ Nella cartella principale:
 
 - `Avvia Football Engine - Live.command`: server locale con dati reali ESPN, nessuna chiave;
 - `Avvia Football Engine - Demo.command`: server locale con dati dimostrativi;
-- `Aggiorna snapshot live.command`: scarica dati reali aggiornati, regola le previsioni passate e rigenera `Football Engine v1.9.0 - Live offline.html` e il file dell'Artifact;
-- `Football Engine v1.9.0 - Live offline.html` e `- Demo offline.html`: si aprono nel browser senza Node.
+- `Aggiorna snapshot live.command`: scarica dati reali aggiornati, regola le previsioni passate e rigenera `Football Engine v2.0.0 - Live offline.html` e il file dell'Artifact;
+- `Football Engine v2.0.0 - Live offline.html` e `- Demo offline.html`: si aprono nel browser senza Node.
 
 Al primo avvio macOS può chiedere conferma: tasto destro sul file, `Apri`.
 
@@ -322,6 +322,7 @@ TRUST_PROXY=true
 | `MONTE_CARLO_RUNS` | `50000` | Simulazioni per analisi |
 | `PREDICTION_LEDGER_ENABLED` | `true` | Registro previsioni e tab Performance |
 | `PREDICTION_LEDGER_PATH` | `data/predictions.jsonl` | File del registro (solo live) |
+| `DEVIG_METHOD` | `shin` | Come togliere il margine del bookmaker: `shin` (corregge il favorite-longshot bias) o `proportional` |
 | `BET_JOURNAL_ENABLED` | `false` | Diario delle giocate sul server. Non ha login: attivalo solo su un'istanza privata o locale (su Render senza disco il file si azzera a ogni deploy) |
 | `BET_JOURNAL_PATH` | `data/bet-journal.jsonl` | Diario personale delle giocate (solo live, escluso da git) |
 | `RESULT_SETTLEMENT_DELAY_MINUTES` | `150` | Attesa dopo il calcio d'inizio prima di cercare il risultato |

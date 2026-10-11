@@ -2,7 +2,7 @@
 
 Creata da **Leone Francesco**.
 
-Versione 1.11.0. Motore ibrido per l'analisi probabilistica delle partite di calcio con dati reali: baseline statistica deterministica, cinque agenti AI con guardrail, Top Picks giornaliere, simulazione quote e validazione post-partita delle previsioni.
+Versione 2.0.0. Motore ibrido per l'analisi probabilistica delle partite di calcio con dati reali: baseline statistica deterministica, cinque agenti AI con guardrail, Top Picks giornaliere, simulazione quote e validazione post-partita delle previsioni.
 
 ## Quattro modi di usarlo
 
@@ -11,7 +11,16 @@ Versione 1.11.0. Motore ibrido per l'analisi probabilistica delle partite di cal
 | **Artifact claude.ai** | Snapshot reale ESPN (155 partite in 15 competizioni al 10/10/2026) | Eseguiti da **Claude** nel runtime Artifact, senza chiavi | [claude.ai/artifact/TEoB1n8Mkv8aDVSH4GHnEU](https://claude.ai/artifact/TEoB1n8Mkv8aDVSH4GHnEU) (privato finché non lo condividi) |
 | **App iPhone** | **Live** ESPN scaricato dal telefono | **Claude (consigliato)**, Gemini o OpenAI con la chiave salvata sul telefono | [flleone93.github.io/football-engine](https://flleone93.github.io/football-engine/) → Safari → Condividi → Aggiungi alla schermata Home |
 | **Server locale / Render** | **Live** ESPN senza chiave, oppure API-Football con chiave | Gemini o OpenAI con chiave lato server | `Avvia Football Engine - Live.command` oppure `npm start` |
-| **File offline** | Snapshot reale ESPN o dati demo | Spenti (sola baseline statistica) | `Football Engine v1.9.0 - Live offline.html` / `- Demo offline.html` |
+| **File offline** | Snapshot reale ESPN o dati demo | Spenti (sola baseline statistica) | `Football Engine v2.0.0 - Live offline.html` / `- Demo offline.html` |
+
+## Novità 2.0.0: precisione
+
+- **Metodo di Shin** per togliere il margine del bookmaker (predefinito, `DEVIG_METHOD=shin`): usato per il benchmark di mercato nella media dei modelli, per l'edge e per lo Storico. Se non converge si torna al metodo proporzionale e la scelta è registrata in `governance.devig`.
+- **Misura onesta del segnale "Valore"** sulle 138 partite reali con quote dell'11/10/2026: 86,2% con il metodo proporzionale, 84,8% con Shin. Shin cambia poco: l'eccesso di segnali viene dal modello (85 segnali su 117 riguardano quote ≥ 3), non dal modo di togliere il margine. Va affrontato nel modello, con lo Storico come prova.
+- **Storico › Andamento nel tempo**: Brier 1X2 mobile sulle ultime 50 partite con la linea del mercato, e ROI cumulato a puntata unitaria con la linea di pareggio.
+- **Rating Elo della stagione** (K=20, +60 in casa, base 1500) dai risultati ESPN: 2 richieste per campionato, in cache 12 ore. Compare nel dettaglio della partita e tra i fattori, **non** modifica le probabilità finché lo Storico non dimostra che migliora il Brier.
+- La puntata consigliata funziona anche senza diario attivo (server pubblico), con le impostazioni predefinite.
+- File offline e lanciatori rinominati in v2.0.0.
 
 ## Novità 1.11.0: valore e giocate
 

@@ -2,7 +2,7 @@
 
 ## Esito
 
-Release verificata: `1.11.0`.
+Release verificata: `2.0.0`.
 
 Il progetto è una base eseguibile e pubblicabile per un motore ibrido di previsione calcistica. Il percorso demo funziona senza credenziali; il percorso live mantiene le chiavi nel backend; i calcoli restano deterministici e gli agenti AI possono solo proporre correzioni limitate e tracciate.
 
@@ -27,6 +27,14 @@ Il progetto è una base eseguibile e pubblicabile per un motore ibrido di previs
 | Alta | I nomi modello e il provider non entravano integralmente nella cache/audit | Provider e modelli effettivi sono inclusi in cache key, meta e trace |
 | Alta | Lo schema condiviso contiene vincoli non supportati dal subset JSON Schema Gemini | Aggiunta conversione deterministica dello schema e validazione applicativa post-risposta |
 | Alta | Interactions API conserva lo stato per impostazione predefinita | Ogni richiesta Gemini imposta esplicitamente `store=false` |
+
+## Rilievi Chiusi nella 2.0.0 (Fase 3: precisione)
+
+- De-vig con il metodo di Shin (`devigShin`, bisezione con tolleranza 1e-10 e al massimo 100 iterazioni), con ritorno al proporzionale in caso di arbitraggio o mancata convergenza, tracciato in `governance.devig`. Proprietà testate: somma 1, ordine delle quote, margine zero uguale al proporzionale, correzione del favorite-longshot bias.
+- Misura sul campione reale (138 partite con quote, 11/10/2026): segnale "Valore" 86,2% con il proporzionale e 84,8% con Shin; 85 dei 117 segnali Shin su quote ≥ 3. **Rilievo aperto:** l'eccesso di segnali nasce dal modello, non dal de-vig.
+- Timeline dello Storico (`timeline(records, 50)`) con Brier mobile, riferimento di mercato e ROI cumulato; due grafici SVG compatibili con la CSP.
+- Elo della stagione da ESPN. Durante la verifica è emerso che `season.slug` indica la fase e non la stagione: un campionato ne mescolava due (926 partite). Corretto usando `season.year`, con un test di regressione. L'Elo resta fuori dall'ensemble.
+- Verifica: 114 test automatici; browser a 390×844 (scuro) e 1024 px (chiaro, dati reali Como–Roma).
 
 ## Rilievi Chiusi nella 1.11.0 (Fase 2: valore e giocate)
 
