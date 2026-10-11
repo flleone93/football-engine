@@ -1,5 +1,6 @@
 import { clamp, round } from '../utils.js';
 import { devigOdds } from './probability.js';
+import { kellyFraction } from './staking.js';
 
 export const LABELS = {
   '1': '1 · Vittoria casa', X: 'X · Pareggio', '2': '2 · Vittoria trasferta',
@@ -41,6 +42,7 @@ export function buildRecommendation(modelMarkets, odds, confidence) {
       marketProbability: marketProbability == null ? null : round(marketProbability, 6),
       edge: edge == null ? null : round(edge, 6),
       expectedValue: expectedValue == null ? null : round(expectedValue, 4),
+      kellyFraction: odd > 1 ? round(kellyFraction(probability, odd), 6) : null,
       interval: [round(clamp(probability - uncertainty, 0, 1), 4), round(clamp(probability + uncertainty, 0, 1), 4)],
       valueScore
     };
