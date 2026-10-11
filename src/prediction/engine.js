@@ -250,6 +250,11 @@ function decisiveFactors(bundle, lambdas, sources, neutral) {
   factors.push({ name: 'Indisponibilità note', direction: injuryDiff > 0 ? bundle.fixture.away.name : injuryDiff < 0 ? bundle.fixture.home.name : 'Neutrale', intensity: Math.abs(injuryDiff) >= 2 ? 'Alta' : 'Bassa', certainty: 'Media-bassa' });
   factors.push({ name: neutral ? 'Campo neutro' : 'Fattore campo', direction: neutral ? 'Neutrale' : bundle.fixture.home.name, intensity: neutral ? 'Bassa' : 'Media', certainty: 'Alta' });
   factors.push({ name: 'Consenso dei modelli', direction: sources.every((source) => !source.probabilities) ? 'Non disponibile' : 'Controllo incrociato', intensity: 'Media', certainty: 'Media' });
+  if (bundle.elo) {
+    const diff = bundle.elo.expectedHome - 0.5;
+    const fewest = Math.min(bundle.elo.home.games, bundle.elo.away.games);
+    factors.push({ name: 'Rating Elo', direction: diff > 0.04 ? bundle.fixture.home.name : diff < -0.04 ? bundle.fixture.away.name : 'Neutrale', intensity: Math.abs(diff) > 0.15 ? 'Alta' : Math.abs(diff) > 0.07 ? 'Media' : 'Bassa', certainty: fewest < 5 ? 'Bassa' : fewest < 15 ? 'Media' : 'Medio-alta' });
+  }
   return factors;
 }
 
@@ -439,7 +444,8 @@ export function analyzeMatch(bundle, options, config) {
       sourceStatus: bundle.sourceStatus || null,
       form: { home: formFromRecent(bundle.recentHome), away: formFromRecent(bundle.recentAway) },
       standings: bundle.standingsContext || { home: null, away: null },
-      weather: bundle.weather || null
+      weather: bundle.weather || null,
+      elo: bundle.elo || null
     }
   };
 }

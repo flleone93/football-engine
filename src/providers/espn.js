@@ -1,6 +1,7 @@
 // Provider live senza chiave: API pubbliche ESPN (calendario, classifiche, forma, scontri diretti,
 // notizie, quote DraftKings con apertura/attuale). Nessuna dipendenza Node: usato anche dallo script snapshot.
 import { TTLCache } from '../cache.js';
+import { ELO_DEFAULTS, eloForFixture } from '../prediction/elo.js';
 import { addDays, round } from '../utils.js';
 import { WeatherService } from './weather.js';
 
@@ -226,6 +227,25 @@ function lineupsFrom(rosters) {
   return { home, away, confirmed: home.length >= 11 && away.length >= 11 };
 }
 
+/** Partite concluse della stessa stagione della gara (`season.slug`), giocate prima del suo calcio d'inizio. */
+export function seasonMatchesFromEvents(events, { eventId, kickoff }) {
+  const target = events.find((event) => String(event.id) === String(eventId));
+  const season = target?.season?.slug || null;
+  if (!season) return { season: null, matches: [] };
+  const before = Date.parse(kickoff);
+  const matches = [];
+  for (const event of events) {
+    const competition = event.competitions?.[0];
+    if (event.season?.slug !== season || !competition?.status?.type?.completed || !(Date.parse(event.date) < before)) continue;
+    const home = competition.competitors?.find((item) => item.homeAway === 'home');
+    const away = competition.competitors?.find((item) => item.homeAway === 'away');
+    const goals = (team) => Number(team?.score?.value ?? team?.score);
+    if (!home?.team?.id || !away?.team?.id || !Number.isFinite(goals(home)) || !Number.isFinite(goals(away))) continue;
+    matches.push({ date: event.date, homeId: String(home.team.id), awayId: String(away.team.id), homeGoals: goals(home), awayGoals: goals(away), neutral: Boolean(competition.neutralSite) });
+  }
+  return { season, matches };
+}
+
 export class EspnProvider {
   constructor(config = {}, { leagues = ESPN_LEAGUES, fetchImpl = globalThis.fetch?.bind(globalThis), weather = null } = {}) {
     this.config = config;
@@ -235,6 +255,7 @@ export class EspnProvider {
     this.fetch = fetchImpl;
     this.weather = weather || new WeatherService({ fetchImpl });
     this.cache = new TTLCache(config.cacheTtlMs || 900000, 5000);
+    this.seasonCache = new TTLCache(12 * 3600000, 64);
     this.fixtureIndex = new Map();
     this.timezone = config.timezone || 'Europe/Rome';
   }
@@ -323,6 +344,29 @@ export class EspnProvider {
     return groups.flatMap((group) => group.standings?.entries || []);
   }
 
+  /** Tutte le partite di un anno solare per un campionato (una richiesta), in cache 12 ore. */
+  async #yearEvents(slug, year) {
+    const key = `${slug}:${year}`;
+    const cached = this.seasonCache.get(key);
+    if (cached !== undefined) return cached;
+    const payload = await this.request(`/site/v2/sports/soccer/${slug}/scoreboard?dates=${year}&limit=1000`);
+    return this.seasonCache.set(key, payload.events || []);
+  }
+
+  /**
+   * Elo della stagione: anno del calcio d'inizio e anno precedente (stagioni europee a cavallo dell'anno).
+   * Un anno non disponibile non blocca: si usa quello che c'è. Senza la gara negli eventi → null.
+   */
+  async seasonElo(slug, { eventId, kickoff, homeId, awayId, neutral = false }) {
+    const year = new Date(kickoff).getUTCFullYear();
+    const results = await Promise.allSettled([this.#yearEvents(slug, year - 1), this.#yearEvents(slug, year)]);
+    const events = results.flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
+    if (!events.length) throw new Error('Risultati della stagione non disponibili.');
+    const { season, matches } = seasonMatchesFromEvents(events, { eventId, kickoff });
+    if (!season) return null;
+    return { ...eloForFixture(matches, { homeId, awayId, neutral }), season, k: ELO_DEFAULTS.k, homeAdvantage: ELO_DEFAULTS.homeAdvantage };
+  }
+
   /** `lite`: previsione rapida per l'elenco, senza notizie di squadra né meteo (non mostrati nell'elenco). */
   async getAnalysisBundle(fixtureId, { force = false, lite = false } = {}) {
     const decoded = decodeFixtureId(fixtureId);
@@ -391,6 +435,18 @@ export class EspnProvider {
     } catch {
       sourceStatus.weather = { available: false, error: 'Meteo: fonte non raggiungibile.' };
     }
+    let elo = null;
+    const eloStatus = { available: false, error: lite ? 'Non calcolato nella previsione rapida.' : null };
+    if (!lite) {
+      try {
+        elo = await this.seasonElo(decoded.slug, { eventId: decoded.eventId, kickoff: fixture.kickoff, homeId: fixture.home.id, awayId: fixture.away.id, neutral: Boolean(headerCompetition?.neutralSite) });
+        eloStatus.available = Boolean(elo);
+        if (!elo) eloStatus.error = 'Stagione non riconosciuta nei risultati ESPN.';
+      } catch (error) {
+        eloStatus.error = 'Risultati della stagione non disponibili.';
+      }
+    }
+    sourceStatus.elo = eloStatus;
     sourceStatus.referee = { available: Boolean(fixture.referee), error: fixture.referee ? null : 'Arbitro non fornito dalla fonte gratuita.' };
     return {
       fixture,
@@ -405,6 +461,7 @@ export class EspnProvider {
       lineups,
       news,
       weather,
+      elo,
       standingsContext: {
         home: homeStats ? { rank: homeStats.rank, points: homeStats.points, played: homeStats.played } : null,
         away: awayStats ? { rank: awayStats.rank, points: awayStats.points, played: awayStats.played } : null

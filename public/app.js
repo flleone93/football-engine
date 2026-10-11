@@ -668,6 +668,7 @@ function renderAnalysis(analysis) {
       </div>
       <p class="match-meta"><button class="league-star" type="button" data-league-star="${escapeHtml(fixture.league.id)}" aria-pressed="${favorites.has('league', fixture.league.id)}">${favorites.has('league', fixture.league.id) ? '★' : '☆'} Competizione preferita: ${escapeHtml(fixture.league.name)}</button></p>
       ${analysis.context.weather ? `<p class="weather-line">Meteo al calcio d'inizio (${escapeHtml(analysis.context.weather.city)}): ${escapeHtml(weatherText(analysis.context.weather))}</p>` : ''}
+      ${analysis.context.elo ? `<p class="weather-line">Elo stagione: ${escapeHtml(fixture.home.name)} ${Math.round(analysis.context.elo.home.rating)} (${analysis.context.elo.home.games} gare) · ${escapeHtml(fixture.away.name)} ${Math.round(analysis.context.elo.away.rating)} (${analysis.context.elo.away.games} gare) · attesa casa ${percent(analysis.context.elo.expectedHome, 0)}. Solo informativo.</p>` : ''}
       <div class="outcome-bar" role="img" aria-label="Probabilità 1X2 al 90': casa ${percent(summary.outcomes.home)}, pareggio ${percent(summary.outcomes.draw)}, trasferta ${percent(summary.outcomes.away)}"><span class="home" data-width="${summary.outcomes.home * 100}"></span><span class="draw" data-width="${summary.outcomes.draw * 100}"></span><span class="away" data-width="${summary.outcomes.away * 100}"></span></div>
       <div class="outcome-legend">
         <div class="home"><span>1 · ${escapeHtml(fixture.home.name)}</span><strong>${percent(summary.outcomes.home, 0)}</strong></div>
