@@ -123,6 +123,7 @@ export class PredictionLedger {
         confidence: analysis.summary.confidence ?? null,
         dataQuality: analysis.governance?.dataQuality?.score ?? null,
         markets: Object.fromEntries((analysis.markets || []).map((market) => [market.key, round(Number(market.probability) || 0, 6)])),
+        odds: Object.fromEntries((analysis.markets || []).filter((market) => Number(market.odd) > 1).map((market) => [market.key, Number(market.odd)])),
         recommendation: {
           key: recommendation.key || null,
           label: recommendation.label || null,
@@ -179,6 +180,24 @@ export class PredictionLedger {
     return [...latest.values()]
       .map((record) => ({ ...record, result: this.#settlements.get(String(record.fixture.id)) || null }))
       .sort((left, right) => right.fixture.kickoff.localeCompare(left.fixture.kickoff));
+  }
+
+  /** Ultima previsione pre-partita di una gara: quote di chiusura (per il CLV) e risultato, se acquisito. */
+  fixtureSnapshot(fixtureId) {
+    const key = String(fixtureId);
+    let latest = null;
+    for (const record of this.#predictions.values()) {
+      if (String(record.fixture.id) !== key) continue;
+      if (!latest || record.predictedAt > latest.predictedAt || (record.predictedAt === latest.predictedAt && record.computedAt > latest.computedAt)) latest = record;
+    }
+    if (!latest) return null;
+    const odds = latest.prediction.odds;
+    return {
+      fixture: latest.fixture,
+      closingOdds: odds && Object.keys(odds).length ? { ...odds } : null,
+      closingAt: latest.predictedAt,
+      result: this.#settlements.get(key) || null
+    };
   }
 
   stats(now = Date.now()) {

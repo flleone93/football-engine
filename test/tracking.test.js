@@ -194,3 +194,27 @@ test('API-Football: il risultato usa il punteggio al 90 minuti, non quello dopo 
     globalThis.fetch = originalFetch;
   }
 });
+
+test('registro: salva tutte le quote e fornisce la fotografia della partita', () => {
+  const ledger = new PredictionLedger();
+  const kickoff = new Date(Date.now() + 6 * HOUR).toISOString();
+  ledger.record(fakeAnalysis({ id: 'f9', kickoff, generatedAt: new Date(Date.now() - 2 * HOUR).toISOString() }));
+  const later = fakeAnalysis({ id: 'f9', kickoff, generatedAt: new Date(Date.now() - HOUR).toISOString() });
+  later.markets = [{ key: '1', probability: 0.5, odd: 1.95 }, { key: 'X', probability: 0.3, odd: null }];
+  ledger.record(later);
+  const snapshot = ledger.fixtureSnapshot('f9');
+  assert.deepEqual(snapshot.closingOdds, { '1': 1.95 });
+  assert.equal(snapshot.closingAt, later.generatedAt);
+  assert.equal(snapshot.fixture.home.name, 'Casa');
+  assert.equal(snapshot.result, null);
+  assert.equal(ledger.fixtureSnapshot('sconosciuta'), null);
+});
+
+test('registro: previsioni vecchie senza quote → closingOdds null', () => {
+  const kickoff = new Date(Date.now() - 5 * HOUR).toISOString();
+  const record = { id: 'old|x|neutral=false', source: 'engine', predictedAt: new Date(Date.now() - 8 * HOUR).toISOString(), computedAt: 'x', fixture: { id: 'old', kickoff, league: { name: 'L' }, home: { name: 'A' }, away: { name: 'B' } }, prediction: { outcomes: { home: 0.4, draw: 0.3, away: 0.3 }, recommendation: {} } };
+  const storage = { kind: 'memory', load: () => [{ type: 'prediction', record }, { type: 'settlement', fixtureId: 'old', result: { finished: true, void: false, goals: { home: 2, away: 1 }, outcome: 'home' } }], append() {} };
+  const snapshot = new PredictionLedger({ storage }).fixtureSnapshot('old');
+  assert.equal(snapshot.closingOdds, null);
+  assert.deepEqual(snapshot.result.goals, { home: 2, away: 1 });
+});
