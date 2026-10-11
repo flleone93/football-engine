@@ -5,7 +5,7 @@ import { buildDataVersion } from './provenance.js';
 import { LABELS } from './prediction/recommendation.js';
 import { recommendedStake } from './prediction/staking.js';
 import { rankAnalyses, buildTopPicks, isNeutralFixture } from './prediction/topPicks.js';
-import { deriveBet, limitStatus, periodLosses, summarize, toNumber } from './tracking/betJournal.js';
+import { DEFAULT_STAKING, deriveBet, limitStatus, periodLosses, summarize, toNumber } from './tracking/betJournal.js';
 
 export const APP_VERSION = '2.0.0';
 
@@ -406,16 +406,18 @@ export function createApi({ config, provider, aiOrchestrator, analysisCache, led
     if (method === 'GET' && pathname === '/api/journal') {
       return { status: 200, payload: await journalReport(requestId) };
     }
+    if (method === 'POST' && pathname === '/api/journal/suggest') {
+      // La puntata consigliata non richiede il diario: senza diario valgono le impostazioni predefinite.
+      const body = await readBody();
+      const settings = journal ? journal.settings() : { ...DEFAULT_STAKING };
+      return { status: 200, payload: { ...recommendedStake({ probability: toNumber(body.probability), odd: toNumber(body.odd), settings }), settings, requestId } };
+    }
     if (method === 'POST' && pathname.startsWith('/api/journal')) {
       if (!journal) return { status: 409, payload: { error: 'Diario delle giocate non disponibile.', requestId } };
       const body = await readBody();
       if (pathname === '/api/journal') return { status: 200, payload: { bet: await addJournalBet(body), requestId } };
       if (pathname === '/api/journal/delete') return { status: 200, payload: { deleted: await journal.remove(String(body.id || '')), requestId } };
       if (pathname === '/api/journal/settings') return { status: 200, payload: { settings: await journal.saveSettings(body), requestId } };
-      if (pathname === '/api/journal/suggest') {
-        const settings = journal.settings();
-        return { status: 200, payload: { ...recommendedStake({ probability: toNumber(body.probability), odd: toNumber(body.odd), settings }), settings, requestId } };
-      }
     }
     if (pathname.startsWith('/api/')) {
       if (method === 'GET') return { status: 404, payload: { error: 'Endpoint non trovato.', requestId } };

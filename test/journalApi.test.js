@@ -75,3 +75,11 @@ test('server: diario disattivato di base, attivabile solo con BET_JOURNAL_ENABLE
   assert.equal(buildConfig({}).betJournal.enabled, false);
   assert.equal(buildConfig({ BET_JOURNAL_ENABLED: 'true' }).betJournal.enabled, true);
 });
+
+test('senza diario la puntata suggerita usa le impostazioni predefinite', async () => {
+  const config = buildConfig({ DEMO_MODE: 'true', AI_MODE: 'off' });
+  const api = createApi({ config, provider: new DemoProvider(), aiOrchestrator: new HybridAiOrchestrator(config), analysisCache: new TTLCache(60000, 500) });
+  const result = await api.handle({ method: 'POST', pathname: '/api/journal/suggest', readBody: async () => ({ probability: 0.6, odd: 2 }), requestId: 't' });
+  assert.equal(result.status, 200);
+  assert.deepEqual([result.payload.kellyFraction, result.payload.fraction, result.payload.stake], [0.2, 0.02, null]);
+});
