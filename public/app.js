@@ -557,7 +557,8 @@ function icsForFixture(fixture) {
 function shareText(analysis) {
   const { fixture, summary } = analysis;
   const odd = analysis.markets.find((market) => market.key === summary.recommendation.key)?.odd;
-  return `${fixture.home.name} - ${fixture.away.name} (${fixture.league.name}, ${formatDateTime(fixture.kickoff)})\n1 ${percent(summary.outcomes.home, 0)} · X ${percent(summary.outcomes.draw, 0)} · 2 ${percent(summary.outcomes.away, 0)}\nIndicazione: ${summary.recommendation.label} ${percent(summary.recommendation.probability, 0)}${odd ? ` a quota ${decimal(odd)}` : ''}\nPrevisione probabilistica, non una certezza. Football Engine di Leone Francesco: https://flleone93.github.io/football-engine/`;
+  const safer = (summary.recommendation.safer || []).map((pick) => `${pick.label} ${percent(pick.probability, 0)}`).join(' · ');
+  return `${fixture.home.name} - ${fixture.away.name} (${fixture.league.name}, ${formatDateTime(fixture.kickoff)})\n1 ${percent(summary.outcomes.home, 0)} · X ${percent(summary.outcomes.draw, 0)} · 2 ${percent(summary.outcomes.away, 0)}\nIndicazione: ${summary.recommendation.label} ${percent(summary.recommendation.probability, 0)}${odd ? ` a quota ${decimal(odd)}` : ''}${safer ? `\nPiù sicure: ${safer}` : ''}\nPrevisione probabilistica, non una certezza. Football Engine di Leone Francesco: https://flleone93.github.io/football-engine/`;
 }
 
 function weatherText(weather) {
@@ -689,6 +690,7 @@ function renderAnalysis(analysis) {
         <span class="chip">Confidenza <b>${summary.confidence}/100</b></span>
       </div>
       <p class="pick-note">${escapeHtml(recommendation.status)} Intervallo ${percent(recommendation.interval[0])}–${percent(recommendation.interval[1])}. Favorita ai 90’: ${escapeHtml(outcomeName(summary.outcomes.home >= summary.outcomes.away ? (summary.outcomes.home >= summary.outcomes.draw ? 'home' : 'draw') : (summary.outcomes.away >= summary.outcomes.draw ? 'away' : 'draw')))}.</p>
+      ${recommendation.safer?.length ? `<div class="safer-picks"><p class="kicker">Giocate più sicure</p>${recommendation.safer.map((pick) => `<div class="safer-pick"><span>${escapeHtml(pick.label)}</span><b>${percent(pick.probability, 0)}</b><small>${pick.odd ? `${pick.estimated ? 'quota stimata' : 'quota'} ${decimal(pick.odd)}` : 'quota non disponibile'}</small></div>`).join('')}</div>` : ''}
       <p class="stake-line" data-stake-line>Puntata consigliata: <b>…</b></p>
       ${state.journal?.enabled && analysis.markets.some((market) => market.odd > 1) && Date.parse(fixture.kickoff) > Date.now() ? `<details class="journal-form-wrap">
         <summary class="secondary-button">Aggiungi al diario</summary>
@@ -995,6 +997,13 @@ function renderRecommendationCard(title, report) {
   </dl></article>`;
 }
 
+function renderSaferCard(title, report) {
+  return `<article class="top-ticket-card"><span>${escapeHtml(title)}</span><strong>${report.n ? `${report.hits}/${report.n} a segno` : 'Ancora nessuna'}</strong><dl>
+    <dt>Frequenza</dt><dd>${report.hitRate == null ? '—' : percent(report.hitRate)}</dd>
+    <dt>Probabilità media</dt><dd>${report.averageProbability == null ? '—' : percent(report.averageProbability)}</dd>
+  </dl></article>`;
+}
+
 function resultCell(record) {
   if (!record.result) return '<span class="signal-muted">In attesa</span>';
   if (record.result.void) return `<span class="signal-muted">Annullata</span>`;
@@ -1055,7 +1064,7 @@ function renderPerformance(payload) {
       <div class="skill-row"><div class="decision-state ${evaluation.benchmarks.brierSkillVsUniform > 0 ? 'positive' : ''}"><strong>Contro il caso</strong><span>${skillText(evaluation.benchmarks.brierSkillVsUniform, 'al modello uniforme')}</span></div>
       <div class="decision-state ${market.brierSkillVsMarket > 0 ? 'positive' : ''}"><strong>Contro le quote</strong><span>${skillText(market.brierSkillVsMarket, 'al mercato')}</span></div></div>`, { open: true })}
     ${section('Andamento nel tempo', 'Ultime 50 partite e rendimento cumulato', renderTimelineCharts(evaluation.timeline), { open: true })}
-    ${section('Indicazioni principali', 'Quante sono andate a segno e con quale rendimento', `<div class="recommendation-grid">${renderRecommendationCard('Tutte le indicazioni', evaluation.recommendations.all)}${renderRecommendationCard('Solo con valore', evaluation.recommendations.valueOnly)}</div>
+    ${section('Indicazioni principali', 'Quante sono andate a segno e con quale rendimento', `<div class="recommendation-grid">${renderRecommendationCard('Tutte le indicazioni', evaluation.recommendations.all)}${renderRecommendationCard('Solo con valore', evaluation.recommendations.valueOnly)}${evaluation.safer ? `${renderSaferCard('Doppia chance della favorita', evaluation.safer.doubleChance)}${renderSaferCard('Over 1.5', evaluation.safer.over15)}` : ''}</div>
       <div class="table-scroll"><table class="data-table compact-table"><caption>Mercati goal</caption><thead><tr><th>Mercato</th><th class="numeric">N</th><th class="numeric">Prevista</th><th class="numeric">Osservata</th><th class="numeric">Brier</th></tr></thead><tbody>${goalRow('Over 2.5', evaluation.goalMarkets.OVER_2_5)}${goalRow('Goal', evaluation.goalMarkets.GOAL)}</tbody></table></div>`, { open: true })}
     ${section('Calibrazione', 'Se il modello dice 60%, succede 6 volte su 10?', `<div class="calibration-body">${renderCalibrationChart(evaluation.calibration.bins)}</div>
       <div class="table-scroll"><table class="data-table compact-table"><thead><tr><th>Fascia</th><th class="numeric">N</th><th class="numeric">Prevista</th><th class="numeric">Osservata</th></tr></thead><tbody>${evaluation.calibration.bins.filter((bin) => bin.n).map((bin) => `<tr><td>${Math.round(bin.from * 100)}–${Math.round(bin.to * 100)}%</td><td class="numeric">${bin.n}</td><td class="numeric">${percent(bin.meanPredicted)}</td><td class="numeric">${percent(bin.observedRate)}</td></tr>`).join('') || '<tr><td colspan="4">Nessun dato.</td></tr>'}</tbody></table></div>`)}

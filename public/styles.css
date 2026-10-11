@@ -579,3 +579,9 @@ details.nested > summary { cursor: pointer; color: var(--accent); font-size: 13p
 .legend.model::before { background: var(--accent); }
 .legend.market::before { background: var(--away); }
 @media (min-width: 900px) { .trend-grid { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- Giocate più sicure (2.1) ---------- */
+.safer-picks { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.safer-pick { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 2px 10px; }
+.safer-pick b { font-family: var(--font-data); font-size: 16px; }
+.safer-pick small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
