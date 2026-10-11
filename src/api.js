@@ -7,7 +7,7 @@ import { recommendedStake } from './prediction/staking.js';
 import { rankAnalyses, buildTopPicks, isNeutralFixture } from './prediction/topPicks.js';
 import { deriveBet, limitStatus, periodLosses, summarize, toNumber } from './tracking/betJournal.js';
 
-export const APP_VERSION = '1.11.0';
+export const APP_VERSION = '2.0.0';
 
 export function failValidation(message) {
   const error = new Error(message);
