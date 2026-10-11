@@ -30,3 +30,8 @@ test('build app iPhone: file installabili, CSP restrittiva, nessun segreto', () 
   const everything = fs.readdirSync(out).filter((file) => /\.(js|html|json)$/.test(file)).map((file) => fs.readFileSync(path.join(out, file), 'utf8')).join('\n');
   assert.doesNotMatch(everything, /AIza[0-9A-Za-z_-]{20,}|sk-[A-Za-z0-9]{20,}|sk-ant-[A-Za-z0-9_-]{20,}/, 'nessuna chiave API nei file pubblicati');
 });
+
+test('gli elementi con attributo hidden restano nascosti anche se una classe imposta display', () => {
+  const css = fs.readFileSync(path.join(root, 'public/styles.css'), 'utf8');
+  assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important;?\s*\}/);
+});

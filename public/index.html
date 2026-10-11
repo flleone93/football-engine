@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Previsioni calcistiche probabilistiche con dati reali, motore statistico e agenti AI. Creata da Leone Francesco.">
   <meta name="author" content="Leone Francesco">
-  <meta name="theme-color" content="#0d1411">
+  <meta name="theme-color" content="#0d1411" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f3f6f2" media="(prefers-color-scheme: light)">
   <title>Enterprise Football Engine</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d1411'/%3E%3Ccircle cx='16' cy='16' r='8.5' fill='none' stroke='%23b8ef65' stroke-width='2.6'/%3E%3Ccircle cx='16' cy='16' r='1.8' fill='%23b8ef65'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/styles.css">
@@ -91,7 +92,7 @@
             </div>
           </div>
 
-          <div id="fixturesLoading" class="loading-card" role="status"><span class="spinner" aria-hidden="true"></span><p>Scarico il calendario…</p></div>
+          <div id="fixturesLoading" role="status" aria-label="Caricamento del calendario"><div class="skeleton-card"><span class="skeleton-line wide"></span><span class="skeleton-line"></span></div><div class="skeleton-card"><span class="skeleton-line wide"></span><span class="skeleton-line"></span></div><div class="skeleton-card"><span class="skeleton-line wide"></span><span class="skeleton-line"></span></div></div>
           <div id="fixturesError" class="error-card hidden" role="alert"></div>
           <div id="fixtureList" class="fixture-list" aria-label="Partite disponibili"></div>
           <p class="source-line">Fonte <span id="providerName">—</span> · quote <span id="bookmakerName">—</span></p>
@@ -128,6 +129,8 @@
             <h3 id="loadingStep">Acquisizione dei dati…</h3>
             <div id="analysisProgress" class="progress" role="progressbar" aria-label="Avanzamento dell'analisi" aria-valuemin="0" aria-valuemax="100" aria-valuenow="8"><span id="loadingProgress"></span></div>
             <p class="muted small">I numeri restano del motore statistico: gli agenti AI possono solo proporre correzioni piccole e motivate.</p>
+            <div class="skeleton-card"><span class="skeleton-line wide"></span><span class="skeleton-line"></span><span class="skeleton-line"></span></div>
+            <div class="skeleton-card"><span class="skeleton-line wide"></span><span class="skeleton-line"></span></div>
           </div>
 
           <div id="analysisError" class="error-card hidden" role="alert"></div>
@@ -217,6 +220,9 @@
           <label for="settingsDays">Giorni da scaricare
             <select id="settingsDays"><option value="2">2 giorni</option><option value="3">3 giorni</option><option value="5">5 giorni</option><option value="7">7 giorni</option></select>
           </label>
+          <label for="settingsTheme">Aspetto
+            <select id="settingsTheme"><option value="auto">Automatico (come l'iPhone)</option><option value="light">Chiaro</option><option value="dark">Scuro</option></select>
+          </label>
           <div id="settingsLeagues" class="settings-leagues" role="group" aria-label="Competizioni"></div>
           <label class="switch" for="settingsAutoTrack"><input id="settingsAutoTrack" type="checkbox"><span aria-hidden="true"></span>Registra da solo le previsioni delle prossime 48 ore</label>
         </fieldset>
@@ -231,6 +237,7 @@
         </div>
       </form>
     </section>
+    <div id="onboarding" class="onboarding" hidden></div>
   </main>
 
   <footer class="app-footer">

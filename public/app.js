@@ -26,7 +26,7 @@ const elements = Object.fromEntries([
   'performanceTab', 'performanceView', 'performanceRefresh', 'performanceExport', 'performanceLoading',
   'performanceError', 'performanceResult',
   'settingsTab', 'settingsView', 'settingsForm', 'settingsProvider', 'settingsKey', 'settingsKeyState', 'settingsMode',
-  'settingsClearKey', 'settingsDays', 'settingsLeagues', 'settingsAutoTrack', 'settingsTrackNow', 'settingsStatus', 'appVersion', 'sortSelect'
+  'settingsClearKey', 'settingsDays', 'settingsLeagues', 'settingsAutoTrack', 'settingsTrackNow', 'settingsStatus', 'appVersion', 'sortSelect', 'settingsTheme', 'onboarding'
 ].map((id) => [id, document.getElementById(id)]));
 
 const percent = (value, digits = 1) => `${(Number(value || 0) * 100).toFixed(digits).replace('.', ',')}%`;
@@ -1047,9 +1047,48 @@ if (deviceApp?.settings && elements.settingsTab) {
   });
 }
 
+// ---------- Tema e guida al primo avvio ----------
+
+function applyTheme(choice) {
+  if (choice === 'light' || choice === 'dark') document.documentElement.dataset.theme = choice;
+  else delete document.documentElement.dataset.theme;
+}
+const storedTheme = (() => { try { return localStorage.getItem('football-engine-theme') || 'auto'; } catch { return 'auto'; } })();
+applyTheme(storedTheme);
+if (elements.settingsTheme) {
+  elements.settingsTheme.value = storedTheme;
+  elements.settingsTheme.addEventListener('change', () => {
+    applyTheme(elements.settingsTheme.value);
+    try { localStorage.setItem('football-engine-theme', elements.settingsTheme.value); } catch { /* sessione */ }
+  });
+}
+
+function showOnboarding() {
+  let seen = false;
+  try { seen = localStorage.getItem('football-engine-onboarded-v1') === '1'; } catch { /* sessione */ }
+  if (seen || !deviceApp?.settings || !elements.onboarding) return;
+  const install = standaloneDisplay ? '' : '<li><b>3</b><span><strong>Installa l\'app:</strong> in Safari tocca Condividi → "Aggiungi alla schermata Home".</span></li>';
+  elements.onboarding.innerHTML = `<div class="onboarding-sheet" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
+    <h2 id="onboardingTitle">Benvenuto in Football Engine</h2>
+    <ol class="onboarding-steps">
+      <li><b>1</b><span><strong>Partite reali, probabilità oneste:</strong> tocca una partita per vedere 1X2, risultati, quote e valore. Sono probabilità, non certezze.</span></li>
+      <li><b>2</b><span><strong>Attiva Claude (consigliato):</strong> Impostazioni → incolla la chiave creata su console.anthropic.com. Senza chiave funziona il motore statistico.</span></li>
+      ${install}
+    </ol>
+    <button class="primary-button" type="button" data-onboarding-close>Inizia</button>
+    <p class="muted small">Creata da Leone Francesco · solo maggiorenni · gioca responsabilmente.</p>
+  </div>`;
+  elements.onboarding.hidden = false;
+  elements.onboarding.querySelector('[data-onboarding-close]').addEventListener('click', () => {
+    elements.onboarding.hidden = true;
+    try { localStorage.setItem('football-engine-onboarded-v1', '1'); } catch { /* sessione */ }
+  });
+}
+
 async function boot() {
   try {
     await loadMeta();
+    showOnboarding();
     elements.analyzeButton.textContent = aiActive() ? 'Analizza con agenti AI' : 'Analizza';
     elements.quickAnalyzeButton.classList.toggle('hidden', !aiActive());
     await loadFixtures();
