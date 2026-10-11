@@ -23,18 +23,26 @@ export function toNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
-function positiveOrNull(value, label) {
+/** Campo facoltativo: vuoto → null; testo non numerico → errore (mai sostituito in silenzio). */
+function parseField(value, label) {
+  if (value == null || String(value).trim() === '') return null;
   const number = toNumber(value);
+  if (number == null) throw invalid(`${label}: numero non valido.`);
+  return number;
+}
+
+function positiveOrNull(value, label) {
+  const number = parseField(value, label);
   if (number == null || number === 0) return null;
   if (number < 0) throw invalid(`${label} non può essere negativo.`);
   return round(number, 2);
 }
 
 export function normalizeSettings(input = {}) {
-  const multiplier = toNumber(input.kellyMultiplier) ?? DEFAULT_STAKING.kellyMultiplier;
+  const multiplier = parseField(input.kellyMultiplier, 'Frazione di Kelly') ?? DEFAULT_STAKING.kellyMultiplier;
   if (!KELLY_MULTIPLIERS.includes(multiplier)) throw invalid('Frazione di Kelly ammessa: 1/8, 1/4 o 1/2.');
-  const cap = toNumber(input.maxStakePct) ?? DEFAULT_STAKING.maxStakePct;
-  if (!(cap > 0 && cap <= 0.1)) throw invalid('Il tetto per giocata deve essere tra lo 0,1% e il 10% del bankroll.');
+  const cap = parseField(input.maxStakePct, 'Tetto per giocata') ?? DEFAULT_STAKING.maxStakePct;
+  if (!(cap >= 0.001 && cap <= 0.1)) throw invalid('Il tetto per giocata deve essere tra lo 0,1% e il 10% del bankroll.');
   return {
     bankroll: positiveOrNull(input.bankroll, 'Il bankroll'),
     kellyMultiplier: multiplier,
@@ -50,6 +58,7 @@ function normalizeBet(input, id) {
   if (!(oddTaken > 1 && oddTaken <= 1000)) throw invalid('La quota deve essere maggiore di 1.');
   if (!(stake > 0 && stake <= 100000)) throw invalid('La puntata deve essere maggiore di zero.');
   if (!input.fixtureId || !input.marketKey) throw invalid('Partita e mercato sono obbligatori.');
+  if (!Number.isFinite(Date.parse(input.kickoff))) throw invalid('Data della partita non valida.');
   return {
     id,
     fixtureId: String(input.fixtureId),
@@ -150,7 +159,8 @@ export class BetJournal {
     this.loadErrors = 0;
     for (const event of storage.load()) {
       try {
-        if (event?.type === 'bet' && event.bet?.id) this.#bets.set(event.bet.id, event.bet);
+        // Ogni giocata riletta passa dalla stessa validazione dell'inserimento: una riga malformata viene scartata.
+        if (event?.type === 'bet' && event.bet?.id) this.#bets.set(event.bet.id, normalizeBet(event.bet, event.bet.id));
         else if (event?.type === 'delete' && event.id) this.#bets.delete(event.id);
         else if (event?.type === 'settings' && event.settings) this.#settings = normalizeSettings(event.settings);
         else this.loadErrors += 1;
@@ -160,31 +170,33 @@ export class BetJournal {
     }
   }
 
-  #append(event) {
-    this.storage.append({ schemaVersion: JOURNAL_SCHEMA_VERSION, at: new Date().toISOString(), ...event });
+  /** Scrive prima su storage (anche asincrono) e solo dopo aggiorna la memoria: nessuna giocata fantasma. */
+  async #append(event) {
+    await this.storage.append({ schemaVersion: JOURNAL_SCHEMA_VERSION, at: new Date().toISOString(), ...event });
   }
 
   settings() {
     return { ...this.#settings };
   }
 
-  saveSettings(input) {
-    this.#settings = normalizeSettings(input);
-    this.#append({ type: 'settings', settings: this.#settings });
+  async saveSettings(input) {
+    const settings = normalizeSettings(input);
+    await this.#append({ type: 'settings', settings });
+    this.#settings = settings;
     return this.settings();
   }
 
-  add(input) {
+  async add(input) {
     const bet = normalizeBet(input, this.idFactory());
+    await this.#append({ type: 'bet', bet });
     this.#bets.set(bet.id, bet);
-    this.#append({ type: 'bet', bet });
     return { ...bet };
   }
 
-  remove(id) {
+  async remove(id) {
     if (!this.#bets.has(id)) return false;
+    await this.#append({ type: 'delete', id });
     this.#bets.delete(id);
-    this.#append({ type: 'delete', id });
     return true;
   }
 

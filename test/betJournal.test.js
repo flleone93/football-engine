@@ -76,23 +76,58 @@ test('limiti di perdita: giorno nel fuso orario e ultimi 7 giorni, solo avviso',
   assert.equal(limitStatus(losses, DEFAULT_STAKING).anyExceeded, false, 'senza limiti nessun avviso');
 });
 
-test('diario: aggiunta, eliminazione, impostazioni ed eventi corrotti ignorati', () => {
+test('diario: aggiunta, eliminazione, impostazioni ed eventi corrotti ignorati', async () => {
   const storage = new MemoryLedgerStorage();
   storage.events = [{ type: 'sconosciuto' }, { type: 'delete', id: 'mai-esistita' }, null];
   let next = 0;
   const journal = new BetJournal({ storage, idFactory: () => `id${(next += 1)}` });
   assert.equal(journal.loadErrors, 2);
-  const added = journal.add({ fixtureId: 'f1', match: 'A - B', competition: 'L', kickoff: '2026-10-12T18:00:00Z', marketKey: '1', label: '1', oddTaken: '2,10', stake: '5', placedAt: '2026-10-11T12:00:00Z' });
+  const added = await journal.add({ fixtureId: 'f1', match: 'A - B', competition: 'L', kickoff: '2026-10-12T18:00:00Z', marketKey: '1', label: '1', oddTaken: '2,10', stake: '5', placedAt: '2026-10-11T12:00:00Z' });
   assert.equal(added.id, 'id1');
   assert.equal(added.oddTaken, 2.1);
   assert.equal(added.stake, 5);
-  assert.throws(() => journal.add({ ...added, oddTaken: '1' }), { code: 'validation_error' });
-  assert.throws(() => journal.add({ ...added, stake: '0' }), { code: 'validation_error' });
-  journal.saveSettings({ bankroll: '200' });
+  await assert.rejects(journal.add({ ...added, oddTaken: '1' }), { code: 'validation_error' });
+  await assert.rejects(journal.add({ ...added, stake: '0' }), { code: 'validation_error' });
+  await journal.saveSettings({ bankroll: '200' });
   const reopened = new BetJournal({ storage });
   assert.equal(reopened.bets().length, 1);
   assert.equal(reopened.settings().bankroll, 200);
-  assert.equal(reopened.remove('id1'), true);
-  assert.equal(reopened.remove('id1'), false);
+  assert.equal(await reopened.remove('id1'), true);
+  assert.equal(await reopened.remove('id1'), false);
   assert.equal(new BetJournal({ storage }).bets().length, 0);
+});
+
+test('diario: giocate salvate malformate vengono scartate senza bloccare il diario', () => {
+  const storage = new MemoryLedgerStorage();
+  storage.events = [
+    { type: 'bet', bet: { id: 'x' } },
+    { type: 'bet', bet: { id: 'y', fixtureId: 'f', marketKey: '1', oddTaken: 2, stake: 5, kickoff: 'non-una-data', placedAt: '2026-10-11T10:00:00Z' } },
+    { type: 'bet', bet: { id: 'z', fixtureId: 'f', marketKey: '1', oddTaken: '2', stake: '5', kickoff: '2026-10-12T10:00:00Z', placedAt: '2026-10-11T10:00:00Z' } }
+  ];
+  const journal = new BetJournal({ storage });
+  assert.equal(journal.loadErrors, 2);
+  const bets = journal.bets();
+  assert.deepEqual(bets.map((item) => item.id), ['z']);
+  assert.equal(bets[0].stake, 5, 'numeri normalizzati anche in rilettura');
+});
+
+test('diario: se la scrittura fallisce la giocata non resta in memoria', async () => {
+  const failing = { kind: 'test', load: () => [], append: async () => { throw new Error('disco pieno'); } };
+  const journal = new BetJournal({ storage: failing, idFactory: () => 'id1' });
+  const input = { fixtureId: 'f1', match: 'A - B', kickoff: '2026-10-12T18:00:00Z', marketKey: '1', label: '1', oddTaken: 2, stake: 5 };
+  await assert.rejects(journal.add(input), /disco pieno/);
+  assert.equal(journal.bets().length, 0);
+  await assert.rejects(journal.saveSettings({ bankroll: 100 }), /disco pieno/);
+  assert.equal(journal.settings().bankroll, null);
+  const ok = new BetJournal({ storage: new MemoryLedgerStorage(), idFactory: () => 'id2' });
+  await ok.add(input);
+  ok.storage.append = () => { throw new Error('sola lettura'); };
+  await assert.rejects(ok.remove('id2'), /sola lettura/);
+  assert.equal(ok.bets().length, 1);
+});
+
+test('impostazioni: testo non numerico rifiutato, non sostituito in silenzio', () => {
+  assert.throws(() => normalizeSettings({ maxStakePct: 'abc' }), { code: 'validation_error' });
+  assert.throws(() => normalizeSettings({ bankroll: '1.234,56' }), { code: 'validation_error' });
+  assert.throws(() => normalizeSettings({ maxStakePct: 0.0001 }), { code: 'validation_error' });
 });

@@ -284,7 +284,7 @@ export function createApi({ config, provider, aiOrchestrator, analysisCache, led
     return { enabled: true, storage: journal.storage.kind || 'custom', settings, bets, summary: summarize(bets), losses, limits: limitStatus(losses, settings), requestId };
   }
 
-  function addJournalBet(body) {
+  async function addJournalBet(body) {
     const fixtureId = validateFixtureId(body.fixtureId);
     const marketKey = String(body.marketKey || '');
     if (!LABELS[marketKey]) throw failValidation('Mercato non riconosciuto.');
@@ -409,9 +409,9 @@ export function createApi({ config, provider, aiOrchestrator, analysisCache, led
     if (method === 'POST' && pathname.startsWith('/api/journal')) {
       if (!journal) return { status: 409, payload: { error: 'Diario delle giocate non disponibile.', requestId } };
       const body = await readBody();
-      if (pathname === '/api/journal') return { status: 200, payload: { bet: addJournalBet(body), requestId } };
-      if (pathname === '/api/journal/delete') return { status: 200, payload: { deleted: journal.remove(String(body.id || '')), requestId } };
-      if (pathname === '/api/journal/settings') return { status: 200, payload: { settings: journal.saveSettings(body), requestId } };
+      if (pathname === '/api/journal') return { status: 200, payload: { bet: await addJournalBet(body), requestId } };
+      if (pathname === '/api/journal/delete') return { status: 200, payload: { deleted: await journal.remove(String(body.id || '')), requestId } };
+      if (pathname === '/api/journal/settings') return { status: 200, payload: { settings: await journal.saveSettings(body), requestId } };
       if (pathname === '/api/journal/suggest') {
         const settings = journal.settings();
         return { status: 200, payload: { ...recommendedStake({ probability: toNumber(body.probability), odd: toNumber(body.odd), settings }), settings, requestId } };
