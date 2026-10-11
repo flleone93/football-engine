@@ -79,7 +79,9 @@ export class PredictionLedger {
   }
 
   #append(event) {
-    this.storage.append({ schemaVersion: LEDGER_SCHEMA_VERSION, ...event });
+    const written = this.storage.append({ schemaVersion: LEDGER_SCHEMA_VERSION, ...event });
+    // Storage asincrono (IndexedDB): la scrittura resta in background, un errore viene solo registrato.
+    written?.catch?.((error) => console.error('[ledger] scrittura non riuscita', error));
   }
 
   /**
