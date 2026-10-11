@@ -240,3 +240,22 @@ test('timeline: Brier mobile, riferimento mercato e ROI cumulato in ordine di ca
   assert.deepEqual(points.map((point) => [point.bets, point.roi]), [[1, 1], [1, 1], [2, 0]]);
   assert.deepEqual(timeline([]), []);
 });
+
+test('registro e Storico: giocate più sicure salvate e valutate, record vecchi ignorati', () => {
+  const ledger = new PredictionLedger();
+  const kickoff = new Date(Date.now() - 5 * HOUR).toISOString();
+  const analysis = fakeAnalysis({ id: 's1', kickoff, generatedAt: new Date(Date.now() - 8 * HOUR).toISOString() });
+  analysis.summary.recommendation.safer = [{ key: '1X', label: '1X', probability: 0.7, odd: 1.3, estimated: true }, { key: 'OVER_1_5', label: 'Over 1.5', probability: 0.75, odd: null, estimated: false }];
+  const record = ledger.record(analysis);
+  assert.deepEqual(record.prediction.safer.map((pick) => pick.key), ['1X', 'OVER_1_5']);
+  const settled = [
+    { ...record, result: { outcome: 'away', goals: { home: 0, away: 1 } } },
+    { ...record, result: { outcome: 'home', goals: { home: 2, away: 1 } } },
+    { ...record, prediction: { ...record.prediction, safer: undefined }, result: { outcome: 'home', goals: { home: 1, away: 0 } } }
+  ];
+  const report = evaluatePredictions(settled).safer;
+  assert.deepEqual([report.doubleChance.n, report.doubleChance.hits, report.doubleChance.hitRate], [2, 1, 0.5]);
+  assert.deepEqual([report.over15.n, report.over15.hits], [2, 1]);
+  assert.equal(report.over15.averageProbability, 0.75);
+  assert.deepEqual(evaluatePredictions([]).safer.doubleChance, { n: 0, hits: 0, hitRate: null, averageProbability: null });
+});

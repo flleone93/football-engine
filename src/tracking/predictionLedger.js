@@ -125,6 +125,7 @@ export class PredictionLedger {
         confidence: analysis.summary.confidence ?? null,
         dataQuality: analysis.governance?.dataQuality?.score ?? null,
         markets: Object.fromEntries((analysis.markets || []).map((market) => [market.key, round(Number(market.probability) || 0, 6)])),
+        safer: (recommendation.safer || []).map((pick) => ({ key: pick.key, probability: round(Number(pick.probability) || 0, 6), odd: Number(pick.odd) > 1 ? pick.odd : null, estimated: Boolean(pick.estimated) })),
         odds: Object.fromEntries((analysis.markets || []).filter((market) => Number(market.odd) > 1).map((market) => [market.key, Number(market.odd)])),
         recommendation: {
           key: recommendation.key || null,

@@ -207,6 +207,24 @@ export function timeline(records, window = 50) {
   return points;
 }
 
+/** Giocate più sicure mostrate dall'app (doppia chance della favorita e Over 1.5): quante sono andate a segno. */
+function saferReport(records) {
+  const build = (match) => {
+    const rows = records.flatMap((record) => (Array.isArray(record.prediction?.safer) ? record.prediction.safer : [])
+      .filter((pick) => match(pick.key))
+      .map((pick) => ({ probability: pick.probability, hit: settleMarket(pick.key, record.result.goals) })))
+      .filter((row) => row.hit != null && Number.isFinite(row.probability));
+    const hits = rows.filter((row) => row.hit).length;
+    return {
+      n: rows.length,
+      hits,
+      hitRate: rows.length ? round(hits / rows.length, 6) : null,
+      averageProbability: rows.length ? round(average(rows.map((row) => row.probability)), 6) : null
+    };
+  };
+  return { doubleChance: build((key) => key === '1X' || key === 'X2'), over15: build((key) => key === 'OVER_1_5') };
+}
+
 /**
  * Valuta i record già regolati. Ogni record: { prediction: { outcomes, marketOutcomes?, recommendation, markets, ... },
  * result: { goals, outcome }, fixture: { league } }.
@@ -244,6 +262,7 @@ export function evaluatePredictions(records) {
       expectedCalibrationError: expectedCalibrationError(bins)
     },
     recommendations: recommendationReport(settled),
+    safer: saferReport(settled),
     goalMarkets: goalMarketsReport(settled),
     timeline: timeline(settled),
     byCompetition: [...competitions.entries()]
