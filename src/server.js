@@ -12,6 +12,7 @@ import { ApiFootballProvider } from './providers/apiFootball.js';
 import { DemoProvider } from './providers/demo.js';
 import { EspnProvider } from './providers/espn.js';
 import { FixedWindowRateLimiter } from './rateLimit.js';
+import { BetJournal } from './tracking/betJournal.js';
 import { JsonlLedgerStorage } from './tracking/fileStorage.js';
 import { MemoryLedgerStorage, PredictionLedger } from './tracking/predictionLedger.js';
 
@@ -32,7 +33,11 @@ const ledger = config.predictionLedger.enabled
     settlementDelayMinutes: config.predictionLedger.settlementDelayMinutes
   })
   : null;
-const api = createApi({ config, provider, aiOrchestrator, analysisCache, ledger });
+// Diario personale delle giocate: file JSONL privato (escluso da git), in memoria in demo.
+const journal = new BetJournal({
+  storage: config.demoMode ? new MemoryLedgerStorage() : new JsonlLedgerStorage(path.resolve(root, config.betJournal.path))
+});
+const api = createApi({ config, provider, aiOrchestrator, analysisCache, ledger, journal });
 const generalLimiter = new FixedWindowRateLimiter({ limit: config.requestRateLimit });
 const expensiveLimiter = new FixedWindowRateLimiter({ limit: config.expensiveRateLimit });
 

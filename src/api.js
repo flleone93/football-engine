@@ -2,9 +2,12 @@
 // Usata dal server Node (src/server.js) e dalla demo standalone nel browser (src/browser/entry.js).
 import { runHybridAnalysis } from './hybridEngine.js';
 import { buildDataVersion } from './provenance.js';
+import { LABELS } from './prediction/recommendation.js';
+import { recommendedStake } from './prediction/staking.js';
 import { rankAnalyses, buildTopPicks, isNeutralFixture } from './prediction/topPicks.js';
+import { deriveBet, limitStatus, periodLosses, summarize, toNumber } from './tracking/betJournal.js';
 
-export const APP_VERSION = '1.10.0';
+export const APP_VERSION = '1.11.0';
 
 export function failValidation(message) {
   const error = new Error(message);
@@ -66,7 +69,7 @@ function compactRecord(record) {
   };
 }
 
-export function createApi({ config, provider, aiOrchestrator, analysisCache, ledger = null }) {
+export function createApi({ config, provider, aiOrchestrator, analysisCache, ledger = null, journal = null }) {
   const topPicksEligibilityPolicy = Object.freeze({
     minProbability: config.topPicksMinProbability,
     minConfidence: config.topPicksMinConfidence,
@@ -271,6 +274,36 @@ export function createApi({ config, provider, aiOrchestrator, analysisCache, led
     });
   }
 
+  async function journalReport(requestId) {
+    if (!journal) return { enabled: false, bets: [], requestId };
+    await settleDueResults();
+    const now = Date.now();
+    const settings = journal.settings();
+    const bets = journal.bets().map((bet) => deriveBet(bet, ledger?.fixtureSnapshot(bet.fixtureId) || null, now));
+    const losses = periodLosses(bets, now, config.timezone);
+    return { enabled: true, storage: journal.storage.kind || 'custom', settings, bets, summary: summarize(bets), losses, limits: limitStatus(losses, settings), requestId };
+  }
+
+  function addJournalBet(body) {
+    const fixtureId = validateFixtureId(body.fixtureId);
+    const marketKey = String(body.marketKey || '');
+    if (!LABELS[marketKey]) throw failValidation('Mercato non riconosciuto.');
+    const snapshot = ledger?.fixtureSnapshot(fixtureId);
+    if (!snapshot) throw failValidation('Analizza la partita prima di aggiungerla al diario.');
+    if (Date.parse(snapshot.fixture.kickoff) <= Date.now()) throw failValidation('La partita è già iniziata: si registrano solo giocate pre-partita.');
+    return journal.add({
+      fixtureId,
+      match: `${snapshot.fixture.home.name} - ${snapshot.fixture.away.name}`,
+      competition: snapshot.fixture.league?.name || '',
+      kickoff: snapshot.fixture.kickoff,
+      marketKey,
+      label: LABELS[marketKey],
+      oddTaken: body.oddTaken,
+      stake: body.stake,
+      placedAt: new Date(Date.now()).toISOString()
+    });
+  }
+
   function meta(requestId) {
     return {
       app: 'Enterprise Football Prediction Engine',
@@ -369,6 +402,20 @@ export function createApi({ config, provider, aiOrchestrator, analysisCache, led
       if (!ledger) return { status: 409, payload: { error: 'Registro previsioni disattivato.', requestId } };
       const settlement = await settleDueResults({ force: true });
       return { status: 200, payload: { settlement, ledger: ledger.stats(), requestId } };
+    }
+    if (method === 'GET' && pathname === '/api/journal') {
+      return { status: 200, payload: await journalReport(requestId) };
+    }
+    if (method === 'POST' && pathname.startsWith('/api/journal')) {
+      if (!journal) return { status: 409, payload: { error: 'Diario delle giocate non disponibile.', requestId } };
+      const body = await readBody();
+      if (pathname === '/api/journal') return { status: 200, payload: { bet: addJournalBet(body), requestId } };
+      if (pathname === '/api/journal/delete') return { status: 200, payload: { deleted: journal.remove(String(body.id || '')), requestId } };
+      if (pathname === '/api/journal/settings') return { status: 200, payload: { settings: journal.saveSettings(body), requestId } };
+      if (pathname === '/api/journal/suggest') {
+        const settings = journal.settings();
+        return { status: 200, payload: { ...recommendedStake({ probability: toNumber(body.probability), odd: toNumber(body.odd), settings }), settings, requestId } };
+      }
     }
     if (pathname.startsWith('/api/')) {
       if (method === 'GET') return { status: 404, payload: { error: 'Endpoint non trovato.', requestId } };

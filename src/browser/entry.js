@@ -6,6 +6,7 @@ import { TTLCache } from '../cache.js';
 import { buildConfig, validateConfigObject } from '../configCore.js';
 import { DemoProvider } from '../providers/demo.js';
 import { PredictionLedger } from '../tracking/predictionLedger.js';
+import { BetJournal } from '../tracking/betJournal.js';
 import { installApiFetch } from './fetchShim.js';
 
 const config = buildConfig({ DEMO_MODE: 'true', AI_MODE: 'off', TIMEZONE: 'Europe/Rome', BOOKMAKER_NAME: 'Bet365' });
@@ -15,7 +16,7 @@ const provider = new DemoProvider();
 const aiOrchestrator = new HybridAiOrchestrator(config);
 const analysisCache = new TTLCache(config.cacheTtlMs, config.cacheMaxEntries);
 const ledger = new PredictionLedger({ settlementDelayMinutes: config.predictionLedger.settlementDelayMinutes });
-const api = createApi({ config, provider, aiOrchestrator, analysisCache, ledger });
+const api = createApi({ config, provider, aiOrchestrator, analysisCache, ledger, journal: new BetJournal() });
 
 installApiFetch(api);
 globalThis.__FOOTBALL_ENGINE_STANDALONE__ = { config, api, version: APP_VERSION, variant: 'demo' };

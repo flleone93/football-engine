@@ -7,6 +7,7 @@ import { TTLCache } from '../cache.js';
 import { buildConfig, validateConfigObject } from '../configCore.js';
 import { SnapshotProvider } from '../providers/snapshot.js';
 import { MemoryLedgerStorage, PredictionLedger } from '../tracking/predictionLedger.js';
+import { BetJournal } from '../tracking/betJournal.js';
 import { installApiFetch } from './fetchShim.js';
 
 const snapshot = globalThis.__FOOTBALL_SNAPSHOT__;
@@ -44,7 +45,7 @@ const analysisCache = new TTLCache(config.cacheTtlMs, config.cacheMaxEntries);
 const storage = new MemoryLedgerStorage();
 storage.events = Array.isArray(snapshot.ledgerEvents) ? snapshot.ledgerEvents : [];
 const ledger = new PredictionLedger({ storage, settlementDelayMinutes: config.predictionLedger.settlementDelayMinutes });
-const api = createApi({ config, provider, aiOrchestrator, analysisCache, ledger });
+const api = createApi({ config, provider, aiOrchestrator, analysisCache, ledger, journal: new BetJournal() });
 
 installApiFetch(api);
 globalThis.__FOOTBALL_ENGINE_STANDALONE__ = { config, api, version: APP_VERSION, variant: 'live-snapshot', claudeRuntime };

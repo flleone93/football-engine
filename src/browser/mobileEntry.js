@@ -7,6 +7,7 @@ import { TTLCache } from '../cache.js';
 import { buildConfig, validateConfigObject } from '../configCore.js';
 import { isNeutralFixture } from '../prediction/topPicks.js';
 import { ESPN_LEAGUES, EspnProvider } from '../providers/espn.js';
+import { BetJournal } from '../tracking/betJournal.js';
 import { PredictionLedger } from '../tracking/predictionLedger.js';
 import { installApiFetch } from './fetchShim.js';
 import { openIdbLedgerStorage } from './idbLedgerStorage.js';
@@ -91,12 +92,15 @@ const ready = (async () => {
   }
   const storage = await openIdbLedgerStorage({ seedEvents });
   const ledger = new PredictionLedger({ storage, settlementDelayMinutes: config.predictionLedger.settlementDelayMinutes });
+  // Diario delle giocate nell'IndexedDB del telefono (in memoria se l'archiviazione è bloccata).
+  const journal = new BetJournal({ storage: await openIdbLedgerStorage({ name: 'football-engine-journal' }) });
   const api = createApi({
     config,
     provider,
     aiOrchestrator: new HybridAiOrchestrator(config),
     analysisCache: new TTLCache(config.cacheTtlMs, config.cacheMaxEntries),
-    ledger
+    ledger,
+    journal
   });
   return { api, ledger };
 })();

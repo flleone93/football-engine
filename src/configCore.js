@@ -79,6 +79,9 @@ export function buildConfig(env = {}) {
       settlementIntervalMinutes: Math.round(number('RESULT_SETTLEMENT_INTERVAL_MINUTES', 15, 1, 1440)),
       settlementMaxPerRun: Math.round(number('RESULT_SETTLEMENT_MAX_PER_RUN', 40, 1, 500))
     }),
+    betJournal: Object.freeze({
+      path: text('BET_JOURNAL_PATH', 'data/bet-journal.jsonl')
+    }),
     ai: Object.freeze({
       mode: choice('AI_MODE', 'off', ['off', 'shadow', 'active']),
       provider: aiProvider,
