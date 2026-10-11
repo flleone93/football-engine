@@ -95,10 +95,11 @@ export function createApi({ config, provider, aiOrchestrator, analysisCache, led
     return `analysis:v6:${fixtureId}:${dataVersion}:neutral=${Boolean(neutral)}:ai=${useAi ? aiMode : 'off'}:provider=${config.ai.provider}:models=${config.ai.modelDefault}:${config.ai.modelChallenge}:${config.ai.modelExplanation}:limits=${config.ai.maxProbabilityShiftPp}:${config.ai.maxTotalXgDelta}:dedup=${config.ai.duplicateEvidenceScale}`;
   }
 
-  async function analyzeFixture(fixtureId, neutral, { refresh = false, useAi = true, lite = false } = {}) {
-    const bundle = await provider.getAnalysisBundle(fixtureId, { force: refresh, lite });
+  // `elo`: risultati della stagione solo per l'analisi singola; Top del giorno e tracciamento non li usano.
+  async function analyzeFixture(fixtureId, neutral, { refresh = false, useAi = true, lite = false, elo = !lite } = {}) {
+    const bundle = await provider.getAnalysisBundle(fixtureId, { force: refresh, lite, elo });
     const dataVersion = buildDataVersion(bundle);
-    const key = cacheKey({ fixtureId, dataVersion, neutral, aiMode: aiOrchestrator.effectiveMode(), useAi });
+    const key = `${cacheKey({ fixtureId, dataVersion, neutral, aiMode: aiOrchestrator.effectiveMode(), useAi })}:elo=${Boolean(elo)}`;
     const result = await analysisCache.getOrCompute(
       key,
       () => runHybridAnalysis({ bundle, options: { neutral }, config, aiOrchestrator, useAi }),
@@ -205,7 +206,7 @@ export function createApi({ config, provider, aiOrchestrator, analysisCache, led
     const fixtures = availableFixtures.slice(0, config.topPicksMaxFixtures);
     const baselineResults = await mapWithConcurrency(fixtures, config.topPicksConcurrency, async (fixture) => {
       try {
-        const analysis = await analyzeFixture(fixture.id, isNeutralFixture(fixture), { refresh, useAi: false });
+        const analysis = await analyzeFixture(fixture.id, isNeutralFixture(fixture), { refresh, useAi: false, elo: false });
         return { analysis };
       } catch (error) {
         return { error: { fixtureId: fixture.id, match: `${fixture.home.name} - ${fixture.away.name}`, message: 'Analisi non completata.' } };
@@ -221,7 +222,7 @@ export function createApi({ config, provider, aiOrchestrator, analysisCache, led
       const byFixtureId = new Map(analyses.map((analysis) => [String(analysis.fixture.id), analysis]));
       const enriched = await mapWithConcurrency(aiShortlist, Math.min(config.topPicksConcurrency, config.ai.maxConcurrency), async (pick) => {
         try {
-          return await analyzeFixture(pick.fixture.id, isNeutralFixture(pick.fixture), { refresh, useAi: true });
+          return await analyzeFixture(pick.fixture.id, isNeutralFixture(pick.fixture), { refresh, useAi: true, elo: false });
         } catch {
           return null;
         }

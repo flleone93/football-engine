@@ -121,3 +121,47 @@ test('ESPN → stagione identificata dall anno: fasi diverse unite, anni diversi
   assert.equal(season, '2026');
   assert.equal(matches.length, 2, 'solo la stagione 2026, con tutte le sue fasi');
 });
+
+test('agenti AI: il fattore Elo non entra nell evidence pack (non deve spostare le probabilità)', async () => {
+  const { buildAgentEvidencePack } = await import('../src/ai/orchestrator.js');
+  const bundle = await new DemoProvider().getAnalysisBundle('demo-france-spain');
+  const elo = { home: { rating: 1600, games: 8 }, away: { rating: 1450, games: 8 }, expectedHome: 0.7, matches: 40, season: '2026', k: 20, homeAdvantage: 60 };
+  const baseline = analyzeMatch({ ...bundle, elo }, { neutral: true }, buildConfig({ DEMO_MODE: 'true' }));
+  assert.ok(baseline.factors.some((item) => item.name === 'Rating Elo'));
+  for (const agentId of ['tactical_context', 'competition_context', 'challenge_bias', 'final_explanation', 'news_intelligence']) {
+    const pack = buildAgentEvidencePack({ ...bundle, elo }, baseline, agentId);
+    assert.equal(JSON.stringify(pack).includes('Rating Elo'), false, agentId);
+    assert.equal(JSON.stringify(pack).includes('"elo"'), false, agentId);
+  }
+});
+
+test('Top del giorno non chiede l Elo; l analisi singola sì (chiave di cache distinta)', async () => {
+  const { createApi } = await import('../src/api.js');
+  const { TTLCache } = await import('../src/cache.js');
+  const { HybridAiOrchestrator } = await import('../src/ai/orchestrator.js');
+  const config = buildConfig({ DEMO_MODE: 'true', AI_MODE: 'off' });
+  const demo = new DemoProvider();
+  const options = [];
+  const provider = { mode: 'demo', getFixtures: (o) => demo.getFixtures(o), getFixturesByDate: (d, o) => demo.getFixturesByDate(d, o), getAnalysisBundle: (id, o = {}) => { options.push({ id, ...o }); return demo.getAnalysisBundle(id, o); } };
+  const api = createApi({ config, provider, aiOrchestrator: new HybridAiOrchestrator(config), analysisCache: new TTLCache(60000, 500) });
+  const [first] = await demo.getFixtures({ days: 7 });
+  const date = new Intl.DateTimeFormat('sv-SE', { timeZone: config.timezone }).format(new Date(first.kickoff));
+  await api.handle({ method: 'POST', pathname: '/api/top-picks', readBody: async () => ({ date, limit: 5, stake: 10 }), requestId: 't' });
+  assert.ok(options.length > 0);
+  assert.ok(options.every((item) => item.elo === false), 'Top del giorno senza Elo');
+  options.length = 0;
+  await api.handle({ method: 'POST', pathname: '/api/analyze', readBody: async () => ({ fixtureId: first.id, useAi: false }), requestId: 't' });
+  assert.equal(options.at(-1).elo, true, 'analisi singola con Elo, non presa dalla cache di Top del giorno');
+});
+
+test('provider: richieste annuali uguali in corso vengono unificate, tentativo unico', async () => {
+  const fake = fakeEspnFetch();
+  const provider = new EspnProvider({ cacheTtlMs: 60000 }, { fetchImpl: fake.fetchImpl, weather: { forecastAt: async () => null } });
+  const args = { eventId: '777', kickoff: '2026-01-20T18:00:00Z', homeId: '10', awayId: '20' };
+  await Promise.all([provider.seasonElo('ita.1', args), provider.seasonElo('ita.1', args), provider.seasonElo('ita.1', args)]);
+  assert.equal(fake.calls.length, 2);
+  const failing = fakeEspnFetch({ failYear: '2025' });
+  const single = new EspnProvider({ cacheTtlMs: 60000 }, { fetchImpl: failing.fetchImpl, weather: { forecastAt: async () => null } });
+  await single.seasonElo('ita.1', args);
+  assert.equal(failing.calls.filter((url) => url.includes('dates=2025')).length, 1, 'nessun nuovo tentativo su una fonte informativa');
+});

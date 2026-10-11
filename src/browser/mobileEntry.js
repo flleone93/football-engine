@@ -124,7 +124,7 @@ async function autoTrack({ force = false } = {}) {
   for (const fixture of fixtures) {
     try {
       const before = ledger.stats().predictionsLogged;
-      await api.analyzeFixture(fixture.id, isNeutralFixture(fixture), { useAi: false });
+      await api.analyzeFixture(fixture.id, isNeutralFixture(fixture), { useAi: false, elo: false });
       if (ledger.stats().predictionsLogged > before) recorded += 1;
     } catch {
       // Una partita non disponibile non blocca le altre.

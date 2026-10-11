@@ -264,14 +264,14 @@ export class EspnProvider {
     this.timezone = config.timezone || 'Europe/Rome';
   }
 
-  async request(path, { force = false } = {}) {
+  async request(path, { force = false, attempts = 3 } = {}) {
     const url = `${BASE}${path}`;
     if (!force) {
       const cached = this.cache.get(url);
       if (cached !== undefined) return cached;
     }
     let lastError;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
       try {
         const response = await this.fetch(url, {
           headers: { accept: 'application/json' },
@@ -286,7 +286,7 @@ export class EspnProvider {
       } catch (error) {
         lastError = error;
         const retryable = error.retryable === true || ['TimeoutError', 'AbortError', 'TypeError'].includes(error.name);
-        if (attempt >= 2 || !retryable) break;
+        if (attempt >= attempts - 1 || !retryable) break;
         await new Promise((resolve) => setTimeout(resolve, 300 * (2 ** attempt)));
       }
     }
@@ -349,12 +349,16 @@ export class EspnProvider {
   }
 
   /** Tutte le partite di un anno solare per un campionato (una richiesta), in cache 12 ore. */
-  async #yearEvents(slug, year) {
+  #yearEvents(slug, year) {
     const key = `${slug}:${year}`;
     const cached = this.seasonCache.get(key);
     if (cached !== undefined) return cached;
-    const payload = await this.request(`/site/v2/sports/soccer/${slug}/scoreboard?dates=${year}&limit=1000`);
-    return this.seasonCache.set(key, payload.events || []);
+    // Promessa in cache: analisi parallele dello stesso campionato condividono la stessa richiesta.
+    // Un solo tentativo: è una fonte informativa, non deve rallentare l'analisi.
+    const pending = this.request(`/site/v2/sports/soccer/${slug}/scoreboard?dates=${year}&limit=1000`, { attempts: 1 }).then((payload) => payload.events || []);
+    this.seasonCache.set(key, pending);
+    pending.catch(() => this.seasonCache.delete(key));
+    return pending;
   }
 
   /**
@@ -372,7 +376,7 @@ export class EspnProvider {
   }
 
   /** `lite`: previsione rapida per l'elenco, senza notizie di squadra né meteo (non mostrati nell'elenco). */
-  async getAnalysisBundle(fixtureId, { force = false, lite = false } = {}) {
+  async getAnalysisBundle(fixtureId, { force = false, lite = false, elo: withElo = !lite } = {}) {
     const decoded = decodeFixtureId(fixtureId);
     if (!decoded) throw Object.assign(new Error('Identificativo ESPN non valido.'), { code: 'not_found' });
     const league = this.leagues.find((item) => item.slug === decoded.slug)
@@ -390,6 +394,11 @@ export class EspnProvider {
     fixture.referee = officials.find((item) => /referee/i.test(item.position?.name || item.position?.displayName || ''))?.displayName
       || officials[0]?.displayName || null;
 
+    // Elo avviato subito, in parallelo con classifica, notizie e meteo.
+    const eloTask = withElo
+      ? this.seasonElo(decoded.slug, { eventId: decoded.eventId, kickoff: fixture.kickoff, homeId: fixture.home.id, awayId: fixture.away.id, neutral: Boolean(headerCompetition?.neutralSite) })
+        .then((value) => ({ value }), () => ({ failed: true }))
+      : null;
     let standings = [];
     try {
       standings = await this.#standings(decoded.slug, force);
@@ -440,15 +449,13 @@ export class EspnProvider {
       sourceStatus.weather = { available: false, error: 'Meteo: fonte non raggiungibile.' };
     }
     let elo = null;
-    const eloStatus = { available: false, error: lite ? 'Non calcolato nella previsione rapida.' : null };
-    if (!lite) {
-      try {
-        elo = await this.seasonElo(decoded.slug, { eventId: decoded.eventId, kickoff: fixture.kickoff, homeId: fixture.home.id, awayId: fixture.away.id, neutral: Boolean(headerCompetition?.neutralSite) });
-        eloStatus.available = Boolean(elo);
-        if (!elo) eloStatus.error = 'Stagione non riconosciuta nei risultati ESPN.';
-      } catch (error) {
-        eloStatus.error = 'Risultati della stagione non disponibili.';
-      }
+    const eloStatus = { available: false, error: withElo ? null : 'Non calcolato per questa vista.' };
+    if (eloTask) {
+      const outcome = await eloTask;
+      elo = outcome.value || null;
+      eloStatus.available = Boolean(elo);
+      if (outcome.failed) eloStatus.error = 'Risultati della stagione non disponibili.';
+      else if (!elo) eloStatus.error = 'Stagione non riconosciuta nei risultati ESPN.';
     }
     sourceStatus.elo = eloStatus;
     sourceStatus.referee = { available: Boolean(fixture.referee), error: fixture.referee ? null : 'Arbitro non fornito dalla fonte gratuita.' };
