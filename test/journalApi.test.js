@@ -15,7 +15,7 @@ function setup({ journal = new BetJournal() } = {}) {
   return { api, call };
 }
 
-test('versione 2.1.0', () => assert.equal(APP_VERSION, '2.1.0'));
+test('versione 2.2.0', () => assert.equal(APP_VERSION, '2.2.0'));
 
 test('diario via API: aggiungi dopo l analisi, leggi, elimina', async () => {
   const { call } = setup();
