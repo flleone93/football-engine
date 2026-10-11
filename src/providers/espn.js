@@ -113,7 +113,7 @@ function mapEvent(event, league) {
   };
 }
 
-function regulationGoals(competition) {
+export function regulationGoals(competition) {
   const home = competition?.competitors?.find((item) => item.homeAway === 'home');
   const away = competition?.competitors?.find((item) => item.homeAway === 'away');
   const fromPeriods = (team) => {
