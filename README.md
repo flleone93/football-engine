@@ -20,7 +20,7 @@ Versione 1.11.0. Motore ibrido per l'analisi probabilistica delle partite di cal
 - **Regolazione automatica** con il risultato al 90' già usato dallo Storico, e **CLV** (quota presa / quota finale prima del calcio d'inizio − 1). Senza quota finale il CLV resta "—", mai stimato; prima del calcio d'inizio è indicato come provvisorio.
 - **Storico › Le mie giocate**: profitto, ROI, CLV medio, percentuale vinte, elenco con elimina, export CSV del diario, impostazioni "Bankroll e limiti".
 - **Limiti di perdita** giornaliero e settimanale: al superamento compare un avviso in cima all'app, senza blocchi.
-- Il diario resta sul telefono (IndexedDB) nell'app iPhone, in un file privato `data/bet-journal.jsonl` sul server (escluso da git), solo per la sessione nell'Artifact e nei file offline.
+- Il diario resta sul telefono (IndexedDB) nell'app iPhone, in un file privato `data/bet-journal.jsonl` sul server solo se attivato con `BET_JOURNAL_ENABLED=true` (nessun login: solo istanze private; escluso da git), solo per la sessione nell'Artifact e nei file offline.
 
 ## Novità 1.10.0: agenti riparati e app più ricca
 
