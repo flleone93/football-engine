@@ -70,3 +70,8 @@ test('senza diario: lettura vuota, scritture 409', async () => {
   const write = await api.handle({ method: 'POST', pathname: '/api/journal/settings', readBody: async () => ({}), requestId: 't' });
   assert.equal(write.status, 409);
 });
+
+test('server: diario disattivato di base, attivabile solo con BET_JOURNAL_ENABLED=true', () => {
+  assert.equal(buildConfig({}).betJournal.enabled, false);
+  assert.equal(buildConfig({ BET_JOURNAL_ENABLED: 'true' }).betJournal.enabled, true);
+});

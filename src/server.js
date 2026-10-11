@@ -33,10 +33,13 @@ const ledger = config.predictionLedger.enabled
     settlementDelayMinutes: config.predictionLedger.settlementDelayMinutes
   })
   : null;
-// Diario personale delle giocate: file JSONL privato (escluso da git), in memoria in demo.
-const journal = new BetJournal({
-  storage: config.demoMode ? new MemoryLedgerStorage() : new JsonlLedgerStorage(path.resolve(root, config.betJournal.path))
-});
+// Diario personale delle giocate: senza login, quindi solo con BET_JOURNAL_ENABLED=true su istanze private.
+// File JSONL escluso da git; in demo resta in memoria.
+const journal = config.betJournal.enabled
+  ? new BetJournal({
+    storage: config.demoMode ? new MemoryLedgerStorage() : new JsonlLedgerStorage(path.resolve(root, config.betJournal.path))
+  })
+  : null;
 const api = createApi({ config, provider, aiOrchestrator, analysisCache, ledger, journal });
 const generalLimiter = new FixedWindowRateLimiter({ limit: config.requestRateLimit });
 const expensiveLimiter = new FixedWindowRateLimiter({ limit: config.expensiveRateLimit });

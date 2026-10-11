@@ -80,6 +80,8 @@ export function buildConfig(env = {}) {
       settlementMaxPerRun: Math.round(number('RESULT_SETTLEMENT_MAX_PER_RUN', 40, 1, 500))
     }),
     betJournal: Object.freeze({
+      // Solo sul server: il diario non ha login, quindi va attivato solo su istanze private o locali.
+      enabled: bool('BET_JOURNAL_ENABLED', false),
       path: text('BET_JOURNAL_PATH', 'data/bet-journal.jsonl')
     }),
     ai: Object.freeze({

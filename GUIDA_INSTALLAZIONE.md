@@ -322,6 +322,7 @@ TRUST_PROXY=true
 | `MONTE_CARLO_RUNS` | `50000` | Simulazioni per analisi |
 | `PREDICTION_LEDGER_ENABLED` | `true` | Registro previsioni e tab Performance |
 | `PREDICTION_LEDGER_PATH` | `data/predictions.jsonl` | File del registro (solo live) |
+| `BET_JOURNAL_ENABLED` | `false` | Diario delle giocate sul server. Non ha login: attivalo solo su un'istanza privata o locale (su Render senza disco il file si azzera a ogni deploy) |
 | `BET_JOURNAL_PATH` | `data/bet-journal.jsonl` | Diario personale delle giocate (solo live, escluso da git) |
 | `RESULT_SETTLEMENT_DELAY_MINUTES` | `150` | Attesa dopo il calcio d'inizio prima di cercare il risultato |
 | `RESULT_SETTLEMENT_INTERVAL_MINUTES` | `15` | Intervallo minimo tra due controlli risultati |
