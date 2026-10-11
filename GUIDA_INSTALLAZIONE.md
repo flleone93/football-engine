@@ -262,7 +262,7 @@ Test inclusi:
 - registro previsioni: solo pre-partita, una previsione ufficiale per gara, persistenza JSONL e righe troncate;
 - endpoint Performance ed export, protezione admin del settlement forzato;
 - risultato API-Football al 90' anche dopo i supplementari;
-- provider Claude: sei agenti end-to-end con sampler simulato, fallback su consenso negato;
+- provider Claude: cinque agenti end-to-end con sampler simulato, fallback su consenso negato;
 - quote ESPN americane→decimali, linee Over/Under diverse da 2.5 escluse, snapshot e selezione `DATA_PROVIDER`.
 
 ## 10. Docker

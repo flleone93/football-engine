@@ -28,6 +28,23 @@ Il progetto è una base eseguibile e pubblicabile per un motore ibrido di previs
 | Alta | Lo schema condiviso contiene vincoli non supportati dal subset JSON Schema Gemini | Aggiunta conversione deterministica dello schema e validazione applicativa post-risposta |
 | Alta | Interactions API conserva lo stato per impostazione predefinita | Ogni richiesta Gemini imposta esplicitamente `store=false` |
 
+## Rilievi Chiusi nella 1.10.0 (Fase 0 + Fase 1)
+
+Copertura misurata su 155 partite reali (prima) e su 60 partite dei 5 giorni successivi (dopo).
+
+| Componente | Prima | Dopo | Intervento |
+|---|---|---|---|
+| Meteo e campo | 0% (nessuna fonte) | 98% | Open-Meteo, solo informativo |
+| Notizie pertinenti | 28% | 98% | Notizie per squadra ESPN + filtro di pertinenza |
+| Agente disponibilità giocatori | 1% | — | Unito a Lineups & Tactical Context (5 agenti) |
+| Machine Learning | 0%, nessun modello | — | Eliminato |
+| Aggiornamento bayesiano | dichiarato attivo, nessun codice | — | Eliminato |
+| Arbitro, previsione esterna | "Escluso" | "Non disponibile" con motivo | Stato `unavailable_source` |
+
+Difetti trovati durante la verifica e corretti con test: chiavi numeriche che alteravano l'ordine 1-X-2 del movimento quote; un velo scuro sempre visibile perché `display: grid` vinceva sull'attributo `hidden`; la mini barra larga 0 px; i preferiti che rompevano l'ordine per giorno.
+
+Osservazione per la Fase 3: il motore segnala "valore" in circa 2 partite su 3. È lo stesso eccesso visto nello storico demo; il metodo di Shin e la verifica sullo storico reale servono a correggerlo.
+
 ## Aggiornamento 1.9.0: provider Anthropic Claude
 
 | Priorità | Rilievo | Correzione |

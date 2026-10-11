@@ -4,7 +4,7 @@ import { runHybridAnalysis } from './hybridEngine.js';
 import { buildDataVersion } from './provenance.js';
 import { rankAnalyses, buildTopPicks, isNeutralFixture } from './prediction/topPicks.js';
 
-export const APP_VERSION = '1.9.0';
+export const APP_VERSION = '1.10.0';
 
 export function failValidation(message) {
   const error = new Error(message);

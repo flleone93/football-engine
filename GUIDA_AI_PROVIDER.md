@@ -26,7 +26,7 @@ Nessuna chiave viene mai inviata al browser. Prompt, evidence pack, JSON Schema,
 L'Artifact generato da `npm run build:live` (`dist/artifact/football-engine-live.html`) imposta `AI_PROVIDER=claude` e `AI_MODE=active`. A ogni "Avvia analisi enterprise":
 
 1. il motore calcola la baseline statistica;
-2. Player Availability, Tactical Context, News Intelligence e Competition Context ricevono il proprio evidence pack (massimo 2 in parallelo); gli agenti senza dati utili restano `insufficient_data` senza chiamare Claude;
+2. Lineups & Tactical Context, News Intelligence e Competition Context ricevono il proprio evidence pack (massimo 2 in parallelo); gli agenti senza dati utili restano `insufficient_data` senza chiamare Claude;
 3. il backend nel browser valida schema, evidence ID e indici, applica cap e deduplicazione;
 4. Challenge & Bias Detection e Final Explanation completano l'analisi.
 

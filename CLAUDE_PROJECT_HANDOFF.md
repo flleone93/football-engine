@@ -108,8 +108,7 @@ Agenti previsti:
 
 | Agent ID | Nome | Ruolo |
 |---|---|---|
-| `player_availability_impact` | Player Availability & Impact Agent | Disponibilità e impatto giocatori |
-| `tactical_context` | Tactical Context Agent | Matchup tattici e ritmo |
+| `tactical_context` | Lineups & Tactical Context Agent | Formazioni, indisponibili, matchup, ritmo, meteo informativo |
 | `news_intelligence` | News Intelligence Agent | News e comunicati presenti nel payload |
 | `competition_context` | Competition Context Agent | Regolamento, motivazioni, contesto competizione |
 | `challenge_bias` | Challenge & Bias Detection Agent | Bias, contraddizioni, overconfidence |

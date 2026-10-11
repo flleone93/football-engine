@@ -2,7 +2,7 @@
 
 Creata da **Leone Francesco**.
 
-Versione 1.9.0. Motore ibrido per l'analisi probabilistica delle partite di calcio con dati reali: baseline statistica deterministica, sei agenti AI con guardrail, Top Picks giornaliere, simulazione quote e validazione post-partita delle previsioni.
+Versione 1.10.0. Motore ibrido per l'analisi probabilistica delle partite di calcio con dati reali: baseline statistica deterministica, cinque agenti AI con guardrail, Top Picks giornaliere, simulazione quote e validazione post-partita delle previsioni.
 
 ## Quattro modi di usarlo
 
@@ -12,6 +12,17 @@ Versione 1.9.0. Motore ibrido per l'analisi probabilistica delle partite di calc
 | **App iPhone** | **Live** ESPN scaricato dal telefono | **Claude (consigliato)**, Gemini o OpenAI con la chiave salvata sul telefono | [flleone93.github.io/football-engine](https://flleone93.github.io/football-engine/) → Safari → Condividi → Aggiungi alla schermata Home |
 | **Server locale / Render** | **Live** ESPN senza chiave, oppure API-Football con chiave | Gemini o OpenAI con chiave lato server | `Avvia Football Engine - Live.command` oppure `npm start` |
 | **File offline** | Snapshot reale ESPN o dati demo | Spenti (sola baseline statistica) | `Football Engine v1.9.0 - Live offline.html` / `- Demo offline.html` |
+
+## Novità 1.10.0: agenti riparati e app più ricca
+
+- **Meteo reale** (Open-Meteo, gratuito) all'ora del calcio d'inizio: temperatura, pioggia, vento. Solo informativo, non modifica le probabilità. Copertura misurata: 98% delle partite.
+- **Notizie per squadra** da ESPN per l'agente notizie: partite con notizie pertinenti dal 28% al 98%.
+- **Agenti AI da 6 a 5**: l'agente disponibilità giocatori (attivo nell'1% delle partite, ESPN non fornisce infortuni) è unito a "Lineups & Tactical Context", che riceve formazioni, indisponibili e meteo.
+- **Moduli finti eliminati**: "Machine Learning" e "Aggiornamento bayesiano" non facevano nulla. Arbitro e previsione esterna sono mostrati come "Non disponibile" con il motivo.
+- **Elenco partite**: mini barra 1X2 e badge "Valore" su ogni partita, ordinamento per orario, valore o probabilità, filtri Preferiti e Solo valore.
+- **Preferiti**: squadre e competizioni, in cima all'elenco del giorno.
+- **Dettaglio**: forma a pallini V/P/S, posizione in classifica, mappa colorata dei risultati esatti, movimento quote apertura → attuale, meteo, "Aggiungi al Calendario" e "Condividi".
+- **Tema chiaro e scuro** automatico o scelto nelle Impostazioni, anteprime di caricamento, guida al primo avvio.
 
 ## Novità 1.9.0: interfaccia per iPhone
 
@@ -26,7 +37,7 @@ Versione 1.9.0. Motore ibrido per l'analisi probabilistica delle partite di calc
 
 1. **Provider dati**: `espn` (pubblico, senza chiave: calendario, classifiche, forma ultime 5, scontri diretti, notizie, quote DraftKings 1X2 e Over/Under 2.5 con apertura e attuale), `api-football` (con chiave: anche infortuni, formazioni, previsione esterna), `demo`, `snapshot`.
 2. **Motore deterministico**: data quality, feature engineering, Poisson/Dixon-Coles, Monte Carlo (50.000 simulazioni), quote de-vig, ensemble pesato, calibrazione strutturale, scenari, mercati, risultati esatti, progressione knockout, timeline, incertezza, movimento quote, Top Picks risk-adjusted.
-3. **Agenti AI** (Player Availability & Impact, Tactical Context, News Intelligence, Competition Context, Challenge & Bias Detection, Final Explanation): ricevono un evidence pack minimizzato per dominio, rispondono in JSON validato e possono solo proporre piccoli aggiustamenti xG o penalità di confidenza entro limiti rigidi.
+3. **Agenti AI** (Lineups & Tactical Context, News Intelligence, Competition Context, Challenge & Bias Detection, Final Explanation): ricevono un evidence pack minimizzato per dominio, rispondono in JSON validato e possono solo proporre piccoli aggiustamenti xG o penalità di confidenza entro limiti rigidi.
 4. **Orchestratore e governance**: cap per agente e globali, deduplicazione delle evidenze, guardrail sullo spostamento delle probabilità, cinque layer separati (dati reali, baseline, valutazioni AI, inferenze non confermate, raccomandazione), audit.
 5. **Registro previsioni e Performance**: ogni previsione pre-partita viene registrata e confrontata con il risultato al 90' (Brier, log loss, RPS, calibrazione, ROI, confronto con il mercato).
 
@@ -126,7 +137,7 @@ oppure `AI_PROVIDER=gemini` con `GEMINI_API_KEY`, o `AI_PROVIDER=openai` con `OP
 npm test
 ```
 
-53 test (incluso l'adapter Anthropic Claude con richiesta, errori e pipeline dei sei agenti; incluso il controllo della build iPhone: CSP, manifest, icone, nessuna chiave nei file pubblicati): probabilità, mercati, H2H, Top Picks, quality gate, provenienza, isolamento dei payload AI, adapter Gemini/OpenAI/Claude (sei agenti end-to-end con sampler simulato e fallback su rifiuto), deduplicazione, knockout, guardrail, costi, metriche Brier/log loss/RPS, registro persistente, risultato al 90', quote ESPN e snapshot.
+53 test (incluso l'adapter Anthropic Claude con richiesta, errori e pipeline dei cinque agenti; incluso il controllo della build iPhone: CSP, manifest, icone, nessuna chiave nei file pubblicati): probabilità, mercati, H2H, Top Picks, quality gate, provenienza, isolamento dei payload AI, adapter Gemini/OpenAI/Claude (sei agenti end-to-end con sampler simulato e fallback su rifiuto), deduplicazione, knockout, guardrail, costi, metriche Brier/log loss/RPS, registro persistente, risultato al 90', quote ESPN e snapshot.
 
 ## Limiti Dichiarati
 

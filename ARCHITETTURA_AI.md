@@ -24,8 +24,7 @@ L'AI non calcola probabilità finali. Il motore statistico produce baseline e ra
 
 | Agent ID | Nome | Output ammesso |
 |---|---|---|
-| `player_availability_impact` | Player Availability & Impact Agent | Effetti xG limitati su assenze/formazioni |
-| `tactical_context` | Tactical Context Agent | Effetti xG limitati da matchup e ritmo |
+| `tactical_context` | Lineups & Tactical Context Agent | Effetti xG limitati (max 0,10) da formazioni, indisponibili, matchup, ritmo e meteo informativo |
 | `news_intelligence` | News Intelligence Agent | Effetti xG molto limitati da news verificate |
 | `competition_context` | Competition Context Agent | Effetti xG limitati da formato/motivazioni |
 | `challenge_bias` | Challenge & Bias Detection Agent | Penalità di confidenza, non xG |
