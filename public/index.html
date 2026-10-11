@@ -79,6 +79,16 @@
                 <select id="leagueFilter"><option value="">Competizioni</option></select>
               </label>
             </div>
+            <div class="list-tools">
+              <div class="chip-group" role="group" aria-label="Filtro elenco">
+                <button type="button" class="filter-chip" data-list-filter="all" aria-pressed="true">Tutte</button>
+                <button type="button" class="filter-chip" data-list-filter="favorites" aria-pressed="false">★ Preferiti</button>
+                <button type="button" class="filter-chip" data-list-filter="value" aria-pressed="false">Solo valore</button>
+              </div>
+              <label for="sortSelect"><span class="sr-only">Ordina</span>
+                <select id="sortSelect"><option value="time">Per orario</option><option value="value">Per valore</option><option value="probability">Per probabilità</option></select>
+              </label>
+            </div>
           </div>
 
           <div id="fixturesLoading" class="loading-card" role="status"><span class="spinner" aria-hidden="true"></span><p>Scarico il calendario…</p></div>

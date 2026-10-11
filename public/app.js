@@ -9,7 +9,10 @@ const state = {
   performanceLoaded: false,
   loadingTimer: null,
   analysisRequestSerial: 0,
-  listScroll: 0
+  listScroll: 0,
+  quick: new Map(),
+  quickPending: new Set(),
+  listFilter: 'all'
 };
 
 const elements = Object.fromEntries([
@@ -23,7 +26,7 @@ const elements = Object.fromEntries([
   'performanceTab', 'performanceView', 'performanceRefresh', 'performanceExport', 'performanceLoading',
   'performanceError', 'performanceResult',
   'settingsTab', 'settingsView', 'settingsForm', 'settingsProvider', 'settingsKey', 'settingsKeyState', 'settingsMode',
-  'settingsClearKey', 'settingsDays', 'settingsLeagues', 'settingsAutoTrack', 'settingsTrackNow', 'settingsStatus', 'appVersion'
+  'settingsClearKey', 'settingsDays', 'settingsLeagues', 'settingsAutoTrack', 'settingsTrackNow', 'settingsStatus', 'appVersion', 'sortSelect'
 ].map((id) => [id, document.getElementById(id)]));
 
 const percent = (value, digits = 1) => `${(Number(value || 0) * 100).toFixed(digits).replace('.', ',')}%`;
@@ -50,6 +53,24 @@ function relativeDay(key) {
   if (key === tomorrow) return 'Domani';
   return null;
 }
+
+// Preferiti salvati nel browser; con archiviazione bloccata restano solo per la sessione.
+const favorites = (() => {
+  const KEY = 'football-engine-favorites-v1';
+  let data = { team: [], league: [] };
+  try { data = { ...data, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { /* sessione senza archiviazione */ }
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch { /* ignorato */ } };
+  return {
+    has: (type, id) => data[type].includes(String(id)),
+    toggle(type, id) {
+      const key = String(id);
+      data[type] = data[type].includes(key) ? data[type].filter((item) => item !== key) : [...data[type], key];
+      persist();
+      return data[type].includes(key);
+    },
+    fixtureIsFavorite: (fixture) => data.team.includes(String(fixture.home.id)) || data.team.includes(String(fixture.away.id)) || data.league.includes(String(fixture.league.id))
+  };
+})();
 
 async function request(url, options = {}) {
   const controller = new AbortController();
@@ -149,38 +170,100 @@ function filteredFixtures() {
   const query = elements.searchInput.value.trim().toLocaleLowerCase('it');
   const league = elements.leagueFilter.value;
   const date = elements.dateFilter.value;
-  return state.fixtures.filter((fixture) => {
+  const list = state.fixtures.filter((fixture) => {
     const haystack = `${fixture.home.name} ${fixture.away.name} ${fixture.league.name} ${fixture.league.country}`.toLocaleLowerCase('it');
     return (!query || haystack.includes(query))
       && (!league || String(fixture.league.id) === league)
-      && (!date || dateKey(fixture.kickoff) === date);
+      && (!date || dateKey(fixture.kickoff) === date)
+      && (state.listFilter !== 'favorites' || favorites.fixtureIsFavorite(fixture))
+      && (state.listFilter !== 'value' || state.quick.get(String(fixture.id))?.recommendation?.hasValue);
   });
+  const sort = elements.sortSelect?.value || 'time';
+  const quick = (fixture) => state.quick.get(String(fixture.id));
+  const byTime = (a, b) => a.kickoff.localeCompare(b.kickoff);
+  if (sort === 'value') return list.sort((a, b) => (quick(b)?.recommendation?.edge ?? -9) - (quick(a)?.recommendation?.edge ?? -9) || byTime(a, b));
+  if (sort === 'probability') return list.sort((a, b) => (quick(b)?.recommendation?.probability ?? -1) - (quick(a)?.recommendation?.probability ?? -1) || byTime(a, b));
+  // Per orario: i giorni restano in ordine; dentro ogni giorno le partite preferite vengono prima.
+  return list.sort((a, b) => dateKey(a.kickoff).localeCompare(dateKey(b.kickoff)) || Number(favorites.fixtureIsFavorite(b)) - Number(favorites.fixtureIsFavorite(a)) || byTime(a, b));
+}
+
+function quickMarkup(fixtureId) {
+  const quick = state.quick.get(String(fixtureId));
+  if (!quick) return state.quickPending.has(String(fixtureId)) ? '<span class="skeleton-line"></span>' : '';
+  if (quick.error) return '';
+  const { home, draw, away } = quick.outcomes;
+  return `<span class="mini-bar" aria-hidden="true"><span class="home" data-width="${home * 100}"></span><span class="draw" data-width="${draw * 100}"></span><span class="away" data-width="${away * 100}"></span></span>
+    <span class="quick-label">${escapeHtml(quick.recommendation.label)} ${percent(quick.recommendation.probability, 0)}</span>
+    ${quick.recommendation.hasValue ? '<span class="value-badge">Valore</span>' : ''}`;
 }
 
 function renderFixtures() {
   const fixtures = filteredFixtures();
   elements.filteredCount.textContent = fixtures.length;
   if (!fixtures.length) {
-    elements.fixtureList.innerHTML = `<div class="loading-card"><p>${state.fixtures.length ? 'Nessuna partita corrisponde alla ricerca.' : 'Nessuna partita in calendario nei prossimi giorni.'}</p></div>`;
+    const message = state.listFilter === 'favorites' ? 'Nessuna partita delle squadre o competizioni preferite. Tocca ☆ accanto a una partita per aggiungerla.'
+      : state.listFilter === 'value' ? 'Nessuna partita con valore tra quelle già analizzate.'
+        : state.fixtures.length ? 'Nessuna partita corrisponde alla ricerca.' : 'Nessuna partita in calendario nei prossimi giorni.';
+    elements.fixtureList.innerHTML = `<div class="loading-card"><p>${escapeHtml(message)}</p></div>`;
     return;
   }
   let previousDate = '';
+  const sortedByTime = (elements.sortSelect?.value || 'time') === 'time';
   elements.fixtureList.innerHTML = fixtures.map((fixture) => {
     const date = dateKey(fixture.kickoff);
     const label = relativeDay(date) ? `${relativeDay(date)} · ${shortDateLabel(fixture.kickoff)}` : dateLabel(fixture.kickoff);
-    const divider = date !== previousDate ? `<div class="date-divider">${escapeHtml(label)}</div>` : '';
+    const divider = sortedByTime && date !== previousDate ? `<div class="date-divider">${escapeHtml(label)}</div>` : '';
     previousDate = date;
     const active = String(state.selected?.id) === String(fixture.id);
-    return `${divider}<button class="fixture-card ${active ? 'active' : ''}" type="button" aria-pressed="${active}" data-fixture-id="${escapeHtml(fixture.id)}">
-      <span class="fixture-time">${formatTime(fixture.kickoff)}</span>
-      <span class="fixture-main">
-        <span class="fixture-teams"><strong>${escapeHtml(fixture.home.name)}</strong><strong>${escapeHtml(fixture.away.name)}</strong></span>
-        <span class="fixture-league">${escapeHtml(fixture.league.name)}${fixture.league.round ? ` · ${escapeHtml(fixture.league.round)}` : ''}</span>
-      </span>
-      ${chevron}
-    </button>`;
+    const starred = favorites.fixtureIsFavorite(fixture);
+    return `${divider}<div class="fixture-row">
+      <button class="fixture-card ${active ? 'active' : ''}" type="button" aria-pressed="${active}" data-fixture-id="${escapeHtml(fixture.id)}">
+        <span class="fixture-time">${formatTime(fixture.kickoff)}</span>
+        <span class="fixture-main">
+          <span class="fixture-teams"><strong>${escapeHtml(fixture.home.name)}</strong><strong>${escapeHtml(fixture.away.name)}</strong></span>
+          <span class="fixture-league">${escapeHtml(fixture.league.name)}${fixture.league.round ? ` · ${escapeHtml(fixture.league.round)}` : ''}${sortedByTime ? '' : ` · ${escapeHtml(shortDateLabel(fixture.kickoff))}`}</span>
+          <span class="fixture-quick">${quickMarkup(fixture.id)}</span>
+        </span>
+        ${chevron}
+      </button>
+      <button class="star-button" type="button" data-star-league="${escapeHtml(fixture.league.id)}" data-star-home="${escapeHtml(fixture.home.id)}" aria-pressed="${starred}" aria-label="${starred ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'} ${escapeHtml(fixture.home.name)}">${starred ? '★' : '☆'}</button>
+    </div>`;
   }).join('');
+  elements.fixtureList.querySelectorAll('[data-width]').forEach((node) => { node.style.width = `${Number(node.dataset.width)}%`; });
   elements.fixtureList.querySelectorAll('[data-fixture-id]').forEach((button) => button.addEventListener('click', () => selectFixture(button.dataset.fixtureId)));
+  elements.fixtureList.querySelectorAll('[data-star-home]').forEach((button) => button.addEventListener('click', () => {
+    favorites.toggle('team', button.dataset.starHome);
+    renderFixtures();
+  }));
+  requestQuickPredictions(fixtures);
+}
+
+let quickTimer = null;
+function requestQuickPredictions(fixtures) {
+  clearTimeout(quickTimer);
+  quickTimer = setTimeout(async () => {
+    const missing = fixtures.map((fixture) => String(fixture.id)).filter((id) => !state.quick.has(id) && !state.quickPending.has(id)).slice(0, 36);
+    if (!missing.length) return;
+    missing.forEach((id) => state.quickPending.add(id));
+    const batches = [];
+    for (let index = 0; index < missing.length; index += 12) batches.push(missing.slice(index, index + 12));
+    let cursor = 0;
+    await Promise.all(Array.from({ length: Math.min(2, batches.length) }, async () => {
+      while (cursor < batches.length) {
+        const batch = batches[cursor];
+        cursor += 1;
+        try {
+          const payload = await request('/api/quick-predictions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ fixtureIds: batch }), timeout: 90000 });
+          for (const item of payload.predictions || []) state.quick.set(String(item.fixtureId), item);
+        } catch {
+          batch.forEach((id) => state.quick.set(id, { fixtureId: id, error: 'Previsione non disponibile.' }));
+        } finally {
+          batch.forEach((id) => state.quickPending.delete(id));
+        }
+      }
+    }));
+    renderFixtures();
+  }, 250);
 }
 
 // ---------- Elenco → dettaglio (iPhone) ----------
@@ -765,6 +848,12 @@ elements.refreshButton.addEventListener('click', () => {
 elements.searchInput.addEventListener('input', renderFixtures);
 elements.leagueFilter.addEventListener('change', renderFixtures);
 elements.dateFilter.addEventListener('change', renderFixtures);
+elements.sortSelect.addEventListener('change', renderFixtures);
+document.querySelectorAll('[data-list-filter]').forEach((chip) => chip.addEventListener('click', () => {
+  state.listFilter = chip.dataset.listFilter;
+  document.querySelectorAll('[data-list-filter]').forEach((item) => item.setAttribute('aria-pressed', String(item === chip)));
+  renderFixtures();
+}));
 elements.topPicksForm.addEventListener('submit', (event) => {
   event.preventDefault();
   loadTopPicks();
