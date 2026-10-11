@@ -19,7 +19,9 @@ Il sistema produce analisi di singole partite e ranking Top 5/6/7 giornalieri co
 
 ## Stato Attuale
 
-Versione: `2.1.0`
+Versione: `2.2.0`
+
+Pesi del motore (2.2.0): `src/prediction/ensembleWeights.js`, stimati dal banco di prova storico (`scripts/build-backtest-dataset.mjs` → `data/backtest/`, poi `scripts/run-backtest.mjs` → pesi e `docs/backtest/` report). Moduli: `src/backtest/historicalBundles.js` (ricostruzione pre-partita), `src/backtest/evaluate.js` (stima pesi, regole Elo e Valore).
 
 Regola dell'Indicazione (2.1.0): segno 1X2 più probabile; `hasValue` solo sul segno scelto; `recommendation.safer` = doppia chance della favorita (quota equa stimata) e Over 1.5.
 

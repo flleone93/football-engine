@@ -2,7 +2,7 @@
 
 Creata da **Leone Francesco**.
 
-Versione 2.1.0. Motore ibrido per l'analisi probabilistica delle partite di calcio con dati reali: baseline statistica deterministica, cinque agenti AI con guardrail, Top Picks giornaliere, simulazione quote e validazione post-partita delle previsioni.
+Versione 2.2.0. Motore ibrido per l'analisi probabilistica delle partite di calcio con dati reali: baseline statistica deterministica, cinque agenti AI con guardrail, Top Picks giornaliere, simulazione quote e validazione post-partita delle previsioni.
 
 ## Quattro modi di usarlo
 
@@ -12,6 +12,24 @@ Versione 2.1.0. Motore ibrido per l'analisi probabilistica delle partite di calc
 | **App iPhone** | **Live** ESPN scaricato dal telefono | **Claude (consigliato)**, Gemini o OpenAI con la chiave salvata sul telefono | [flleone93.github.io/football-engine](https://flleone93.github.io/football-engine/) → Safari → Condividi → Aggiungi alla schermata Home |
 | **Server locale / Render** | **Live** ESPN senza chiave, oppure API-Football con chiave | Gemini o OpenAI con chiave lato server | `Avvia Football Engine - Live.command` oppure `npm start` |
 | **File offline** | Snapshot reale ESPN o dati demo | Spenti (sola baseline statistica) | `Football Engine v2.0.0 - Live offline.html` / `- Demo offline.html` |
+
+## Novità 2.2.0: pesi del modello decisi dai dati
+
+- **Banco di prova storico**: 7.006 partite reali ESPN (15 campionati, stagioni 2025 e 2026), 3.979 con quote DraftKings di chiusura. Per ogni partita il motore vero gira con i soli dati disponibili prima del calcio d'inizio (niente dati dal futuro, verificato da test).
+- **Pesi stimati sulla stagione 2025 e verificati sulla 2026** (mai vista dalla stima):
+
+| Configurazione (stagione di verifica 2026, 1.757 partite) | Brier | Log loss | Accuratezza |
+|---|---|---|---|
+| Pesi manuali fino alla 2.1 | 0,619 | 1,031 | 47,5% |
+| Pesi stimati dai dati (2.2) | 0,604 | 1,009 | 48,7% |
+| Pesi stimati con Elo | 0,603 | 1,008 | 48,9% |
+| Solo mercato | 0,603 | 1,008 | 49,1% |
+
+- **Cosa dicono i dati**: con le fonti gratuite il mercato è il previsore migliore; i pesi stimati sono mercato 97%, Monte Carlo 2%, forma 0,6%, Poisson e scontri diretti 0%. Il motore ora segue le quote e se ne discosta solo dove porta informazione utile.
+- **Il segnale "Valore" di prima era un'illusione**: sulla verifica scattava 364 volte con rendimento **−11,7%** a quota di chiusura. Con i nuovi pesi non scatta più (0 segnali), perché il modello non trova vantaggi reali sulle quote. Sulle partite di oggi: dal 10,3% allo 0%; scostamento medio dal mercato sulle sfavorite da 5,1 a 0,2 punti.
+- **Elo**: migliora il log loss di appena 0,0006, sotto la soglia di 0,002 fissata in anticipo, quindi resta informativo. Ora tiene conto del campo neutro impostato a mano e, se manca, l'app scrive "Elo non disponibile" con il motivo.
+- **Storico**: il grafico del Brier confronta motore e mercato sulle stesse partite; nuova sezione "Versione modello" per separare le metriche prima e dopo la correzione.
+- Rifare la stima: `node scripts/build-backtest-dataset.mjs` e poi `node scripts/run-backtest.mjs` (report in `docs/backtest/`).
 
 ## Novità 2.1.0: Indicazione sull'esito più probabile
 

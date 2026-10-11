@@ -2,7 +2,7 @@
 
 ## Esito
 
-Release verificata: `2.1.0`.
+Release verificata: `2.2.0`.
 
 Il progetto è una base eseguibile e pubblicabile per un motore ibrido di previsione calcistica. Il percorso demo funziona senza credenziali; il percorso live mantiene le chiavi nel backend; i calcoli restano deterministici e gli agenti AI possono solo proporre correzioni limitate e tracciate.
 
@@ -27,6 +27,20 @@ Il progetto è una base eseguibile e pubblicabile per un motore ibrido di previs
 | Alta | I nomi modello e il provider non entravano integralmente nella cache/audit | Provider e modelli effettivi sono inclusi in cache key, meta e trace |
 | Alta | Lo schema condiviso contiene vincoli non supportati dal subset JSON Schema Gemini | Aggiunta conversione deterministica dello schema e validazione applicativa post-risposta |
 | Alta | Interactions API conserva lo stato per impostazione predefinita | Ogni richiesta Gemini imposta esplicitamente `store=false` |
+
+## Rilievi Chiusi nella 2.2.0 (pesi decisi dai dati)
+
+- Rilievo aperto dalla 2.0 (eccesso di "Valore", modello sbilanciato sulle sfavorite) chiuso con un banco di prova storico: 7.006 partite, 3.979 con quote; ricostruzione pre-partita senza dati dal futuro (test di regressione dedicato).
+| Configurazione (stagione di verifica 2026, 1.757 partite) | Brier | Log loss | Accuratezza |
+|---|---|---|---|
+| Pesi manuali fino alla 2.1 | 0,619 | 1,031 | 47,5% |
+| Pesi stimati dai dati (2.2) | 0,604 | 1,009 | 48,7% |
+| Pesi stimati con Elo | 0,603 | 1,008 | 48,9% |
+| Solo mercato | 0,603 | 1,008 | 49,1% |
+- Regole fissate prima dei numeri: Elo solo con almeno 0,002 di log loss in meno (misurato 0,0006 → escluso); soglia "Valore" invariata (0 segnali dopo la correzione). Prima della correzione il "Valore" sulla verifica dava 364 segnali con ROI −11,7%: il segnale era rumore del modello.
+- Pesi e soglie in `src/prediction/ensembleWeights.js` (versione `dati-2026-10-11`), con ripiego automatico sui pesi manuali se il file fosse malformato; `governance.ensemble` e `modelVersion` in ogni analisi e nello Storico.
+- Rilievi minori chiusi: Brier del motore sullo stesso campione del mercato; Elo ricalcolato col campo neutro forzato; "Elo non disponibile" con motivo.
+- Limiti dichiarati: nel banco di prova la forma è solo di campionato e le quote sono di chiusura; la stima del pareggio Elo è al limite della griglia (0,34) ma l'Elo è comunque escluso.
 
 ## Rilievi Chiusi nella 2.1.0 (Indicazione sull'esito più probabile)
 

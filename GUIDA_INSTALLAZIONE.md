@@ -394,3 +394,9 @@ Prima di passare in live:
 6. monta un volume persistente su `data/` per il registro previsioni;
 7. per scalare su più istanze sostituisci cache, rate limit, ledger costi e registro JSONL con Redis/database condivisi;
 8. non dichiarare accuratezza o calibrazione finché il tab Performance non ha uno storico live sufficiente (indicativamente alcune centinaia di partite).
+
+## Ricalcolare i pesi del modello (banco di prova storico)
+
+1. `node scripts/build-backtest-dataset.mjs` — scarica da ESPN le partite concluse delle stagioni 2025 e 2026 con le quote (alcuni minuti; file in `data/backtest/`, esclusi da git).
+2. `node scripts/run-backtest.mjs` — stima i pesi sulla stagione 2025, li verifica sulla 2026, applica le regole fissate (Elo solo con almeno 0,002 di log loss in meno; soglia "Valore" alzata solo se in perdita con almeno 50 segnali) e riscrive `src/prediction/ensembleWeights.js` e `docs/backtest/2026-10-11-report.md`.
+3. `npm test` e ricostruzione delle app (`npm run build`).
