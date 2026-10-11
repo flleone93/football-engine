@@ -69,10 +69,12 @@ export function buildRecommendation(modelMarkets, odds, confidence, method = 'pr
 /** Giocate più sicure, sempre entrambe: doppia chance della favorita e Over 1.5. */
 function saferPicks(byKey) {
   const doubleChance = byKey['1'].probability >= byKey['2'].probability ? byKey['1X'] : byKey.X2;
-  const fairOdd = doubleChance.marketProbability > 0 ? Math.round(100 / doubleChance.marketProbability) / 100 : null;
+  // Quota reale del bookmaker se disponibile; altrimenti quota equa (senza margine) stimata dalle quote 1X2.
+  const realOdd = doubleChance.odd > 1 ? doubleChance.odd : null;
+  const fairOdd = realOdd == null && doubleChance.marketProbability > 0 ? Math.round(100 / doubleChance.marketProbability) / 100 : null;
   const over = byKey.OVER_1_5;
   return [
-    { key: doubleChance.key, label: doubleChance.label, probability: doubleChance.probability, odd: fairOdd, estimated: fairOdd != null },
+    { key: doubleChance.key, label: doubleChance.label, probability: doubleChance.probability, odd: realOdd ?? fairOdd, estimated: realOdd == null && fairOdd != null },
     { key: over.key, label: over.label, probability: over.probability, odd: over.odd > 1 ? over.odd : null, estimated: false }
   ];
 }

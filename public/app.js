@@ -690,7 +690,7 @@ function renderAnalysis(analysis) {
         <span class="chip">Confidenza <b>${summary.confidence}/100</b></span>
       </div>
       <p class="pick-note">${escapeHtml(recommendation.status)} Intervallo ${percent(recommendation.interval[0])}–${percent(recommendation.interval[1])}. Favorita ai 90’: ${escapeHtml(outcomeName(summary.outcomes.home >= summary.outcomes.away ? (summary.outcomes.home >= summary.outcomes.draw ? 'home' : 'draw') : (summary.outcomes.away >= summary.outcomes.draw ? 'away' : 'draw')))}.</p>
-      ${recommendation.safer?.length ? `<div class="safer-picks"><p class="kicker">Giocate più sicure</p>${recommendation.safer.map((pick) => `<div class="safer-pick"><span>${escapeHtml(pick.label)}</span><b>${percent(pick.probability, 0)}</b><small>${pick.odd ? `${pick.estimated ? 'quota stimata' : 'quota'} ${decimal(pick.odd)}` : 'quota non disponibile'}</small></div>`).join('')}</div>` : ''}
+      ${recommendation.safer?.length ? `<div class="safer-picks"><p class="kicker">Giocate più sicure</p>${recommendation.safer.map((pick) => `<div class="safer-pick"><span>${escapeHtml(pick.label)}</span><b>${percent(pick.probability, 0)}</b><small>${pick.odd ? `${pick.estimated ? 'quota equa stimata' : 'quota'} ${decimal(pick.odd)}` : 'quota non disponibile'}</small></div>`).join('')}</div>` : ''}
       <p class="stake-line" data-stake-line>Puntata consigliata: <b>…</b></p>
       ${state.journal?.enabled && analysis.markets.some((market) => market.odd > 1) && Date.parse(fixture.kickoff) > Date.now() ? `<details class="journal-form-wrap">
         <summary class="secondary-button">Aggiungi al diario</summary>

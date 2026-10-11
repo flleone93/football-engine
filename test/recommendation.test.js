@@ -64,3 +64,13 @@ test('proprietà su tutte le partite demo: il segno indicato non è mai meno pro
     assert.equal(analysis.summary.recommendation.safer.length, 2);
   }
 });
+
+test('doppia chance: quota reale del bookmaker se c è, stima equa solo se manca', () => {
+  const real = buildRecommendation(markets(0.5, 0.27, 0.23, 0.8), { values: { '1': 2.0, X: 3.3, '2': 3.5, '1X': 1.25, OVER_1_5: 1.3 } }, 60, 'shin');
+  assert.deepEqual([real.safer[0].key, real.safer[0].odd, real.safer[0].estimated], ['1X', 1.25, false]);
+  assert.deepEqual([real.safer[1].odd, real.safer[1].estimated], [1.3, false]);
+  const fair = buildRecommendation(markets(0.5, 0.27, 0.23, 0.8), { values: { '1': 2.0, X: 3.3, '2': 3.5 } }, 60, 'shin');
+  assert.equal(fair.safer[0].estimated, true);
+  assert.ok(fair.safer[0].odd > 1);
+  assert.equal(fair.safer[1].odd, null, 'Over 1.5 senza quota resta vuoto, mai stimato');
+});
