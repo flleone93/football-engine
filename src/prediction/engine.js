@@ -405,7 +405,8 @@ export function analyzeMatch(bundle, options, config) {
         status: recommendation.status,
         edge: recommendation.edge,
         expectedValue: recommendation.expectedValue,
-        action: recommendation.hasValue ? 'consider' : 'observe'
+        action: recommendation.hasValue ? 'consider' : 'observe',
+        safer: recommendation.safer
       }
     },
     markets: recommendation.candidates,

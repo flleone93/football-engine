@@ -40,9 +40,6 @@ export function buildRecommendation(modelMarkets, odds, confidence, method = 'pr
     const marketProbability = market[key] ?? null;
     const edge = marketProbability == null ? null : probability - marketProbability;
     const expectedValue = odd ? probability * odd - 1 : null;
-    const valueScore = edge == null
-      ? probability * reliability[key]
-      : edge * 3.2 * reliability[key] + probability * 0.08;
     const uncertainty = clamp(0.035 + (100 - confidence) / 1000 + (1 - reliability[key]) * 0.06, 0.04, 0.14);
     return {
       key, label: LABELS[key], probability: round(probability, 6), odd,
@@ -50,22 +47,32 @@ export function buildRecommendation(modelMarkets, odds, confidence, method = 'pr
       edge: edge == null ? null : round(edge, 6),
       expectedValue: expectedValue == null ? null : round(expectedValue, 4),
       kellyFraction: odd > 1 ? round(kellyFraction(probability, odd), 6) : null,
-      interval: [round(clamp(probability - uncertainty, 0, 1), 4), round(clamp(probability + uncertainty, 0, 1), 4)],
-      valueScore
+      interval: [round(clamp(probability - uncertainty, 0, 1), 4), round(clamp(probability + uncertainty, 0, 1), 4)]
     };
   });
-  const valueCandidates = candidates.filter((item) => item.edge >= 0.025 && item.expectedValue >= 0.03);
-  const quotedCandidates = candidates.filter((item) => Number.isFinite(item.odd) && item.odd > 1);
-  const selectionPool = valueCandidates.length ? valueCandidates : quotedCandidates.length ? quotedCandidates : candidates;
-  const selected = [...selectionPool]
-    .sort((a, b) => b.valueScore - a.valueScore)[0];
+  const byKey = Object.fromEntries(candidates.map((item) => [item.key, item]));
+  // Segno 1X2 più probabile; a parità vince l'ordine 1, 2, X (scelta deterministica).
+  const selected = ['1', '2', 'X'].map((key) => byKey[key]).reduce((best, item) => (item.probability > best.probability ? item : best));
+  const hasValue = selected.edge != null && selected.edge >= 0.025 && selected.expectedValue != null && selected.expectedValue >= 0.03;
   return {
     ...selected,
-    hasValue: valueCandidates.length > 0,
+    hasValue,
     devigFallbacks,
-    status: valueCandidates.length > 0
-      ? 'Segnale con margine statistico rispetto alla quota disponibile.'
-      : 'Esito più robusto del modello; nessun vantaggio di quota sufficiente rilevato.',
-    candidates: candidates.sort((a, b) => b.probability - a.probability).map(({ valueScore, ...item }) => item)
+    status: hasValue
+      ? 'Esito più probabile, con margine statistico rispetto alla quota.'
+      : 'Esito più probabile del modello; la quota non offre un vantaggio sufficiente.',
+    safer: saferPicks(byKey),
+    candidates: candidates.sort((a, b) => b.probability - a.probability)
   };
+}
+
+/** Giocate più sicure, sempre entrambe: doppia chance della favorita e Over 1.5. */
+function saferPicks(byKey) {
+  const doubleChance = byKey['1'].probability >= byKey['2'].probability ? byKey['1X'] : byKey.X2;
+  const fairOdd = doubleChance.marketProbability > 0 ? Math.round(100 / doubleChance.marketProbability) / 100 : null;
+  const over = byKey.OVER_1_5;
+  return [
+    { key: doubleChance.key, label: doubleChance.label, probability: doubleChance.probability, odd: fairOdd, estimated: fairOdd != null },
+    { key: over.key, label: over.label, probability: over.probability, odd: over.odd > 1 ? over.odd : null, estimated: false }
+  ];
 }
