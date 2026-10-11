@@ -10,7 +10,7 @@ import { buildConfig } from '../src/configCore.js';
 import { ApiFootballProvider } from '../src/providers/apiFootball.js';
 import { DemoProvider } from '../src/providers/demo.js';
 import { JsonlLedgerStorage } from '../src/tracking/fileStorage.js';
-import { brierScore, calibrationBins, evaluatePredictions, logLoss, rankedProbabilityScore, settleMarket } from '../src/tracking/metrics.js';
+import { brierScore, calibrationBins, evaluatePredictions, logLoss, rankedProbabilityScore, settleMarket, timeline } from '../src/tracking/metrics.js';
 import { PredictionLedger } from '../src/tracking/predictionLedger.js';
 
 const HOUR = 3600000;
@@ -217,4 +217,26 @@ test('registro: previsioni vecchie senza quote → closingOdds null', () => {
   const snapshot = new PredictionLedger({ storage }).fixtureSnapshot('old');
   assert.equal(snapshot.closingOdds, null);
   assert.deepEqual(snapshot.result.goals, { home: 2, away: 1 });
+});
+
+test('timeline: Brier mobile, riferimento mercato e ROI cumulato in ordine di calcio d inizio', () => {
+  const record = (kickoff, outcome, goals, odd, marketOutcomes = { home: 0.5, draw: 0.3, away: 0.2 }) => ({
+    fixture: { kickoff },
+    prediction: { outcomes: { home: 0.6, draw: 0.25, away: 0.15 }, marketOutcomes, recommendation: { key: '1', odd } },
+    result: { outcome, goals }
+  });
+  const records = [
+    record('2026-10-03T18:00:00Z', 'away', { home: 0, away: 1 }, 2),
+    record('2026-10-01T18:00:00Z', 'home', { home: 2, away: 0 }, 2),
+    record('2026-10-02T18:00:00Z', 'home', { home: 1, away: 0 }, null, null)
+  ];
+  const points = timeline(records, 2);
+  assert.deepEqual(points.map((point) => point.kickoff), ['2026-10-01T18:00:00Z', '2026-10-02T18:00:00Z', '2026-10-03T18:00:00Z']);
+  const hitBrier = (1 - 0.6) ** 2 + 0.25 ** 2 + 0.15 ** 2;
+  const missBrier = 0.6 ** 2 + 0.25 ** 2 + (1 - 0.15) ** 2;
+  assert.ok(Math.abs(points[0].brier - hitBrier) < 1e-6);
+  assert.ok(Math.abs(points[2].brier - (hitBrier + missBrier) / 2) < 1e-6, 'finestra di 2');
+  assert.equal(points[1].marketBrier, points[0].marketBrier, 'record senza mercato: riferimento invariato');
+  assert.deepEqual(points.map((point) => [point.bets, point.roi]), [[1, 1], [1, 1], [2, 0]]);
+  assert.deepEqual(timeline([]), []);
 });

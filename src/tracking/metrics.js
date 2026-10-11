@@ -174,6 +174,40 @@ function goalMarketsReport(records) {
 }
 
 /**
+ * Andamento nel tempo (ordine di calcio d'inizio): Brier 1X2 mobile del modello e del mercato sulle ultime `window`
+ * partite e ROI cumulato a puntata unitaria sulle indicazioni con quota. Il mercato manca dove mancano le sue quote.
+ */
+export function timeline(records, window = 50) {
+  const ordered = records
+    .filter((record) => record?.result?.outcome && normalized(record.prediction?.outcomes))
+    .sort((left, right) => String(left.fixture?.kickoff).localeCompare(String(right.fixture?.kickoff)));
+  const points = [];
+  let profit = 0;
+  let bets = 0;
+  ordered.forEach((record, index) => {
+    const recent = ordered.slice(Math.max(0, index - window + 1), index + 1);
+    const model = recent.map((item) => brierScore(normalized(item.prediction.outcomes), item.result.outcome));
+    const market = recent.filter((item) => normalized(item.prediction.marketOutcomes))
+      .map((item) => brierScore(normalized(item.prediction.marketOutcomes), item.result.outcome));
+    const recommendation = record.prediction.recommendation || {};
+    const hit = settleMarket(recommendation.key, record.result.goals);
+    if (Number(recommendation.odd) > 1 && hit != null) {
+      bets += 1;
+      profit += hit ? recommendation.odd - 1 : -1;
+    }
+    points.push({
+      kickoff: record.fixture.kickoff,
+      n: index + 1,
+      brier: round(average(model), 6),
+      marketBrier: market.length ? round(average(market), 6) : null,
+      roi: bets ? round(profit / bets, 6) : null,
+      bets
+    });
+  });
+  return points;
+}
+
+/**
  * Valuta i record già regolati. Ogni record: { prediction: { outcomes, marketOutcomes?, recommendation, markets, ... },
  * result: { goals, outcome }, fixture: { league } }.
  */
@@ -211,6 +245,7 @@ export function evaluatePredictions(records) {
     },
     recommendations: recommendationReport(settled),
     goalMarkets: goalMarketsReport(settled),
+    timeline: timeline(settled),
     byCompetition: [...competitions.entries()]
       .map(([name, items]) => ({ name, ...scoreSet(items, (record) => record.prediction.outcomes) }))
       .sort((left, right) => right.n - left.n || left.name.localeCompare(right.name))
