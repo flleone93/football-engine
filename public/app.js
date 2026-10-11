@@ -933,6 +933,57 @@ function renderCalibrationChart(bins) {
   </svg>`;
 }
 
+/** Grafico a linee SVG con assi in scala; `reference` è una linea orizzontale fissa (es. pareggio a ROI 0). */
+function renderLineChart({ points, series, format, reference = null, label }) {
+  const width = 340;
+  const height = 200;
+  const pad = { left: 46, right: 10, top: 12, bottom: 28 };
+  const values = series.flatMap((item) => points.map((point) => point[item.key])).filter(Number.isFinite);
+  if (reference != null) values.push(reference);
+  let min = Math.min(...values);
+  let max = Math.max(...values);
+  if (max - min < 1e-6) { min -= 0.05; max += 0.05; }
+  const span = max - min;
+  min -= span * 0.08;
+  max += span * 0.08;
+  const x = (index) => pad.left + (points.length === 1 ? 0 : index / (points.length - 1)) * (width - pad.left - pad.right);
+  const y = (value) => pad.top + (1 - (value - min) / (max - min)) * (height - pad.top - pad.bottom);
+  const ticks = [0, 1, 2, 3].map((step) => min + (max - min) * step / 3);
+  const grid = ticks.map((tick) => `<line class="calib-grid" x1="${pad.left}" y1="${y(tick).toFixed(1)}" x2="${width - pad.right}" y2="${y(tick).toFixed(1)}"/><text class="calib-label" x="${pad.left - 6}" y="${(y(tick) + 3).toFixed(1)}" text-anchor="end">${escapeHtml(format(tick))}</text>`).join('');
+  const lines = series.map((item) => {
+    let path = '';
+    points.forEach((point, index) => {
+      if (!Number.isFinite(point[item.key])) return;
+      path += `${path ? 'L' : 'M'}${x(index).toFixed(1)},${y(point[item.key]).toFixed(1)} `;
+    });
+    return path ? `<path class="timeline-line ${item.className}" d="${path.trim()}"/>` : '';
+  }).join('');
+  const referenceLine = reference == null ? '' : `<line class="calib-diagonal" x1="${pad.left}" y1="${y(reference).toFixed(1)}" x2="${width - pad.right}" y2="${y(reference).toFixed(1)}"/>`;
+  const first = points[0];
+  const last = points[points.length - 1];
+  return `<svg class="timeline-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(label)}">
+    ${grid}${referenceLine}${lines}
+    <text class="calib-label" x="${pad.left}" y="${height - 8}">${escapeHtml(shortDateLabel(first.kickoff))}</text>
+    <text class="calib-label" x="${width - pad.right}" y="${height - 8}" text-anchor="end">${escapeHtml(shortDateLabel(last.kickoff))} · ${last.n} partite</text>
+  </svg>`;
+}
+
+function renderTimelineCharts(points) {
+  if (!points || points.length < 2) return '<p class="muted">Servono almeno 2 partite concluse per disegnare l’andamento.</p>';
+  const last = points[points.length - 1];
+  const decimals = (value) => decimal(value, 3);
+  return `<div class="timeline-grid">
+    <figure class="timeline-figure">
+      <figcaption><strong>Brier 1X2 mobile</strong> (più basso è meglio) · <span class="legend model">Motore</span> <span class="legend market">Mercato</span></figcaption>
+      ${renderLineChart({ points, series: [{ key: 'brier', className: 'model' }, { key: 'marketBrier', className: 'market' }], format: decimals, label: `Brier mobile: motore ${decimals(last.brier)}${last.marketBrier == null ? '' : `, mercato ${decimals(last.marketBrier)}`}` })}
+    </figure>
+    <figure class="timeline-figure">
+      <figcaption><strong>ROI cumulato</strong> a puntata unitaria · linea tratteggiata = pareggio</figcaption>
+      ${points.some((point) => point.roi != null) ? renderLineChart({ points, series: [{ key: 'roi', className: 'model' }], format: (value) => signedPercent(value, 0), reference: 0, label: `ROI cumulato ${last.roi == null ? 'non disponibile' : signedPercent(last.roi)} su ${last.bets} indicazioni` }) : '<p class="muted">Nessuna indicazione con quota da valutare.</p>'}
+    </figure>
+  </div>`;
+}
+
 function renderRecommendationCard(title, report) {
   const roi = report.flatStake.roi;
   return `<article class="top-ticket-card"><span>${escapeHtml(title)}</span><strong>${report.n ? `${report.hits}/${report.n} vinte` : 'Nessuna'}</strong><dl>
@@ -1002,6 +1053,7 @@ function renderPerformance(payload) {
       </tbody></table></div>
       <div class="skill-row"><div class="decision-state ${evaluation.benchmarks.brierSkillVsUniform > 0 ? 'positive' : ''}"><strong>Contro il caso</strong><span>${skillText(evaluation.benchmarks.brierSkillVsUniform, 'al modello uniforme')}</span></div>
       <div class="decision-state ${market.brierSkillVsMarket > 0 ? 'positive' : ''}"><strong>Contro le quote</strong><span>${skillText(market.brierSkillVsMarket, 'al mercato')}</span></div></div>`, { open: true })}
+    ${section('Andamento nel tempo', 'Ultime 50 partite e rendimento cumulato', renderTimelineCharts(evaluation.timeline), { open: true })}
     ${section('Indicazioni principali', 'Quante sono andate a segno e con quale rendimento', `<div class="recommendation-grid">${renderRecommendationCard('Tutte le indicazioni', evaluation.recommendations.all)}${renderRecommendationCard('Solo con valore', evaluation.recommendations.valueOnly)}</div>
       <div class="table-scroll"><table class="data-table compact-table"><caption>Mercati goal</caption><thead><tr><th>Mercato</th><th class="numeric">N</th><th class="numeric">Prevista</th><th class="numeric">Osservata</th><th class="numeric">Brier</th></tr></thead><tbody>${goalRow('Over 2.5', evaluation.goalMarkets.OVER_2_5)}${goalRow('Goal', evaluation.goalMarkets.GOAL)}</tbody></table></div>`, { open: true })}
     ${section('Calibrazione', 'Se il modello dice 60%, succede 6 volte su 10?', `<div class="calibration-body">${renderCalibrationChart(evaluation.calibration.bins)}</div>
