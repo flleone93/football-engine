@@ -568,6 +568,9 @@ function weatherText(weather) {
   return parts.join(' · ');
 }
 
+// Quota esattamente come fornita (fino a 3 decimali, senza zeri finali): arrotondarla inventerebbe un CLV.
+const oddInput = (value) => String(Math.round(Number(value) * 1000) / 1000).replace('.', ',');
+
 const stakeText = (suggestion) => {
   if (!suggestion || suggestion.kellyFraction == null) return '—';
   if (!suggestion.hasStake) return 'Nessuna puntata consigliata';
@@ -601,7 +604,8 @@ async function loadJournal() {
     state.journal = null;
   }
   renderJournalLimitNotice();
-  if (typeof renderJournal === 'function' && !elements.performanceView.hidden) renderJournal();
+  // Sempre: la sezione vive nel suo contenitore, così tornando allo Storico è già aggiornata.
+  renderJournal();
 }
 
 function wireStakeAndJournal(analysis) {
@@ -618,7 +622,7 @@ function wireStakeAndJournal(analysis) {
   let stakeEdited = false;
   const fill = async ({ keepOdd = false } = {}) => {
     const option = form.marketKey.selectedOptions[0];
-    if (!keepOdd) form.oddTaken.value = decimal(option.dataset.odd);
+    if (!keepOdd) form.oddTaken.value = oddInput(option.dataset.odd);
     const suggestion = await suggestStake(Number(option.dataset.probability), form.oddTaken.value);
     if (!stakeEdited) form.stake.value = suggestion?.stake ? decimal(suggestion.stake) : '';
     status.textContent = `Suggerimento: ${stakeText(suggestion)}`;
@@ -685,7 +689,7 @@ function renderAnalysis(analysis) {
       </div>
       <p class="pick-note">${escapeHtml(recommendation.status)} Intervallo ${percent(recommendation.interval[0])}–${percent(recommendation.interval[1])}. Favorita ai 90’: ${escapeHtml(outcomeName(summary.outcomes.home >= summary.outcomes.away ? (summary.outcomes.home >= summary.outcomes.draw ? 'home' : 'draw') : (summary.outcomes.away >= summary.outcomes.draw ? 'away' : 'draw')))}.</p>
       <p class="stake-line" data-stake-line>Puntata consigliata: <b>…</b></p>
-      ${analysis.markets.some((market) => market.odd > 1) && Date.parse(fixture.kickoff) > Date.now() ? `<details class="journal-form-wrap">
+      ${state.journal?.enabled && analysis.markets.some((market) => market.odd > 1) && Date.parse(fixture.kickoff) > Date.now() ? `<details class="journal-form-wrap">
         <summary class="secondary-button">Aggiungi al diario</summary>
         <form class="journal-form" data-journal-form>
           <label>Mercato<select name="marketKey">${analysis.markets.filter((market) => market.odd > 1).map((market) => `<option value="${escapeHtml(market.key)}" data-probability="${market.probability}" data-odd="${market.odd}" ${market.key === recommendation.key ? 'selected' : ''}>${escapeHtml(market.label)} · ${decimal(market.odd)}</option>`).join('')}</select></label>
@@ -1020,7 +1024,6 @@ async function loadPerformance() {
     state.performanceLoaded = true;
     renderPerformance(state.performance);
     await loadJournal();
-    renderJournal();
     elements.appStatus.textContent = `Storico aggiornato: ${state.performance.evaluation?.settled ?? 0} partite valutate.`;
   } catch (error) {
     elements.performanceError.textContent = error.message;
@@ -1098,8 +1101,14 @@ function renderJournal() {
       </form>
     </details>
     <button id="journalExport" class="secondary-button" type="button" ${bets.length ? '' : 'disabled'}>Esporta diario CSV</button>`, { open: true, badge: `${summary.count}` });
+  // Eliminazione in due tocchi: confirm() è bloccato dentro l'Artifact claude.ai.
   node.querySelectorAll('[data-delete-bet]').forEach((button) => button.addEventListener('click', async () => {
-    if (!window.confirm('Eliminare questa giocata dal diario?')) return;
+    if (!button.dataset.confirmDelete) {
+      button.dataset.confirmDelete = '1';
+      button.textContent = 'Conferma eliminazione';
+      setTimeout(() => { if (button.isConnected && !button.disabled) { delete button.dataset.confirmDelete; button.textContent = 'Elimina'; } }, 4000);
+      return;
+    }
     button.disabled = true;
     try {
       await postJson('/api/journal/delete', { id: button.dataset.deleteBet });

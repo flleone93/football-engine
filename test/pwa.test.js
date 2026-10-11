@@ -34,6 +34,9 @@ test('build app iPhone: file installabili, CSP restrittiva, nessun segreto', () 
   assert.match(html, /id="journalResult"/);
   assert.match(everything, /Le mie giocate/);
   assert.match(everything, /Esporta diario CSV/);
+  assert.doesNotMatch(everything, /window\.confirm\(/, 'confirm() è bloccato nell Artifact: eliminazione in due tocchi');
+  assert.match(everything, /dataset\.confirmDelete/);
+  assert.match(everything, /oddInput\(option\.dataset\.odd\)/, 'quota precompilata senza arrotondare (CLV mai inventato)');
   assert.doesNotMatch(everything, /AIza[0-9A-Za-z_-]{20,}|sk-[A-Za-z0-9]{20,}|sk-ant-[A-Za-z0-9_-]{20,}/, 'nessuna chiave API nei file pubblicati');
 });
 
