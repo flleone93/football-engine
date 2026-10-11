@@ -248,6 +248,29 @@ export function createApi({ config, provider, aiOrchestrator, analysisCache, led
     };
   }
 
+  async function quickPredictions(body) {
+    const ids = Array.isArray(body?.fixtureIds) ? body.fixtureIds : null;
+    if (!ids || ids.length < 1 || ids.length > 12) throw failValidation('fixtureIds deve contenere da 1 a 12 partite.');
+    const fixtures = await provider.getFixtures({ days: config.matchDaysAhead });
+    const byId = new Map(fixtures.map((fixture) => [String(fixture.id), fixture]));
+    return mapWithConcurrency(ids.map((id) => String(id)), 3, async (fixtureId) => {
+      try {
+        validateFixtureId(fixtureId);
+        const fixture = byId.get(fixtureId);
+        const analysis = await analyzeFixture(fixtureId, fixture ? isNeutralFixture(fixture) : false, { useAi: false });
+        const recommendation = analysis.summary.recommendation;
+        return {
+          fixtureId,
+          outcomes: analysis.summary.outcomes,
+          recommendation: { key: recommendation.key, label: recommendation.label, probability: recommendation.probability, hasValue: Boolean(recommendation.hasValue), edge: recommendation.edge ?? null },
+          confidence: analysis.summary.confidence
+        };
+      } catch {
+        return { fixtureId, error: 'Previsione non disponibile.' };
+      }
+    });
+  }
+
   function meta(requestId) {
     return {
       app: 'Enterprise Football Prediction Engine',
@@ -322,6 +345,10 @@ export function createApi({ config, provider, aiOrchestrator, analysisCache, led
       const fixtureId = validateFixtureId(body.fixtureId);
       const analysis = await analyzeFixture(fixtureId, body.neutral === true, { refresh: body.refresh === true, useAi: body.useAi !== false });
       return { status: 200, payload: { ...analysis, requestId } };
+    }
+    if (method === 'POST' && pathname === '/api/quick-predictions') {
+      const body = await readBody();
+      return { status: 200, payload: { predictions: await quickPredictions(body), requestId } };
     }
     if (method === 'POST' && pathname === '/api/top-picks') {
       const body = await readBody();
