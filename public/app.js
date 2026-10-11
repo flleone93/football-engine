@@ -1019,6 +1019,8 @@ async function loadPerformance() {
     state.performance = await request('/api/performance', { timeout: 120000 });
     state.performanceLoaded = true;
     renderPerformance(state.performance);
+    await loadJournal();
+    renderJournal();
     elements.appStatus.textContent = `Storico aggiornato: ${state.performance.evaluation?.settled ?? 0} partite valutate.`;
   } catch (error) {
     elements.performanceError.textContent = error.message;
@@ -1051,6 +1053,91 @@ async function exportPerformanceCsv() {
     elements.performanceError.classList.remove('hidden');
   } finally {
     elements.performanceExport.disabled = false;
+  }
+}
+
+const BET_STATUS = { open: 'In corso', won: 'Vinta', lost: 'Persa', void: 'Annullata' };
+
+function betRow(bet) {
+  const clv = bet.clv == null ? '—' : `${signedPercent(bet.clv)}${bet.clvFinal ? '' : ' (provvisorio)'}`;
+  const profit = bet.profit == null ? '—' : `${bet.profit >= 0 ? '+' : ''}${currency(bet.profit)}`;
+  return `<div class="record-row bet-row">
+    <div><strong>${escapeHtml(bet.match)}</strong><small>${escapeHtml(bet.label)} · quota ${decimal(bet.oddTaken)} · ${currency(bet.stake)} · ${escapeHtml(formatDateTime(bet.kickoff, { dateStyle: 'short' }))}</small><small>Chiusura ${bet.closingOdd ? decimal(bet.closingOdd) : '—'} · CLV ${escapeHtml(clv)}</small></div>
+    <div class="record-side"><span class="${bet.status === 'won' ? 'signal-positive' : bet.status === 'lost' ? 'signal-negative' : 'signal-muted'}">${BET_STATUS[bet.status]}${bet.goals ? ` ${bet.goals.home}-${bet.goals.away}` : ''}</span><b>${escapeHtml(profit)}</b><button class="link-button" type="button" data-delete-bet="${escapeHtml(bet.id)}" aria-label="Elimina la giocata ${escapeHtml(bet.match)}">Elimina</button></div>
+  </div>`;
+}
+
+function renderJournal() {
+  const node = elements.journalResult;
+  const payload = state.journal;
+  if (!node) return;
+  if (!payload?.enabled) { node.innerHTML = ''; return; }
+  const { summary, settings, bets } = payload;
+  const fractionOptions = [[0.125, '1/8'], [0.25, '1/4'], [0.5, '1/2']].map(([value, label]) => `<option value="${value}" ${settings.kellyMultiplier === value ? 'selected' : ''}>${label}</option>`).join('');
+  const num = (value) => (value == null ? '' : String(value).replace('.', ','));
+  node.innerHTML = section('Le mie giocate', 'Profitto, ROI e CLV delle giocate registrate', `
+    ${payload.storage === 'memory' ? '<div class="notice" role="note">Il diario resta solo per questa sessione: l’archiviazione del browser non è disponibile qui.</div>' : ''}
+    <div class="metric-grid">
+      <article class="metric-card"><span>Giocate</span><strong>${summary.count}</strong></article>
+      <article class="metric-card"><span>Profitto</span><strong class="${summary.profit > 0 ? 'signal-positive' : summary.profit < 0 ? 'signal-negative' : ''}">${currency(summary.profit)}</strong></article>
+      <article class="metric-card"><span>ROI</span><strong>${summary.roi == null ? '—' : signedPercent(summary.roi)}</strong></article>
+      <article class="metric-card"><span>CLV medio</span><strong>${summary.avgClv == null ? '—' : signedPercent(summary.avgClv)}</strong></article>
+      <article class="metric-card"><span>Vinte</span><strong>${summary.winRate == null ? '—' : percent(summary.winRate, 0)}</strong></article>
+      <article class="metric-card"><span>In corso</span><strong>${summary.open}</strong></article>
+    </div>
+    <div class="record-list">${bets.map(betRow).join('') || '<p class="muted">Nessuna giocata: apri una partita e tocca “Aggiungi al diario”.</p>'}</div>
+    <details class="nested"><summary>Bankroll e limiti</summary>
+      <form class="journal-form" data-journal-settings>
+        <label>Bankroll (€, vuoto = puntate in %)<input name="bankroll" inputmode="decimal" value="${num(settings.bankroll)}"></label>
+        <label>Frazione di Kelly<select name="kellyMultiplier">${fractionOptions}</select></label>
+        <label>Tetto per giocata (% del bankroll)<input name="maxStakePct" inputmode="decimal" value="${num(Math.round(settings.maxStakePct * 1000) / 10)}"></label>
+        <label>Limite di perdita giornaliero (€)<input name="dailyLossLimit" inputmode="decimal" value="${num(settings.dailyLossLimit)}"></label>
+        <label>Limite di perdita settimanale (€)<input name="weeklyLossLimit" inputmode="decimal" value="${num(settings.weeklyLossLimit)}"></label>
+        <button class="primary-button" type="submit">Salva</button>
+        <p class="muted small" data-settings-status role="status">Al superamento di un limite compare un avviso: nessun blocco, decidi tu.</p>
+      </form>
+    </details>
+    <button id="journalExport" class="secondary-button" type="button" ${bets.length ? '' : 'disabled'}>Esporta diario CSV</button>`, { open: true, badge: `${summary.count}` });
+  node.querySelectorAll('[data-delete-bet]').forEach((button) => button.addEventListener('click', async () => {
+    if (!window.confirm('Eliminare questa giocata dal diario?')) return;
+    button.disabled = true;
+    try {
+      await postJson('/api/journal/delete', { id: button.dataset.deleteBet });
+      await loadJournal();
+    } catch (error) {
+      elements.appStatus.textContent = error.message;
+      button.disabled = false;
+    }
+  }));
+  const form = node.querySelector('[data-journal-settings]');
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const statusNode = form.querySelector('[data-settings-status]');
+    const pct = String(form.maxStakePct.value).trim().replace(',', '.');
+    try {
+      await postJson('/api/journal/settings', {
+        bankroll: form.bankroll.value, kellyMultiplier: Number(form.kellyMultiplier.value),
+        maxStakePct: pct ? Number(pct) / 100 : '', dailyLossLimit: form.dailyLossLimit.value, weeklyLossLimit: form.weeklyLossLimit.value
+      });
+      statusNode.textContent = 'Salvato.';
+      await loadJournal();
+    } catch (error) {
+      statusNode.textContent = error.message;
+    }
+  });
+  node.querySelector('#journalExport')?.addEventListener('click', exportJournalCsv);
+}
+
+async function exportJournalCsv() {
+  const bets = state.journal?.bets || [];
+  if (!bets.length) return;
+  const headers = ['placedAt', 'kickoff', 'competition', 'match', 'market', 'oddTaken', 'stake', 'closingOdd', 'clv', 'clvFinal', 'status', 'goals', 'profit'];
+  const rows = bets.map((bet) => [bet.placedAt, bet.kickoff, bet.competition, bet.match, bet.label, bet.oddTaken, bet.stake, bet.closingOdd, bet.clv, bet.clvFinal, BET_STATUS[bet.status], bet.goals ? `${bet.goals.home}-${bet.goals.away}` : '', bet.profit]);
+  const csv = [headers.join(';'), ...rows.map((row) => row.map(csvCell).join(';'))].join('\r\n');
+  try {
+    await downloadFile(`diario-giocate-${dateKey(new Date())}.csv`, `﻿${csv}`, 'text/csv');
+  } catch (error) {
+    elements.appStatus.textContent = error.message;
   }
 }
 

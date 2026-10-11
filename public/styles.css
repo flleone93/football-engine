@@ -561,3 +561,8 @@ details.nested > summary { cursor: pointer; color: var(--accent); font-size: 13p
 .journal-form input { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 16px; }
 .limit-notice { border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
 @media print { .journal-form-wrap, #journalLimitNotice { display: none !important; } }
+.link-button { min-height: 44px; padding: 0 4px; border: 0; color: var(--bad); background: transparent; font-size: 12.5px; font-weight: 600; }
+.journal-result { display: grid; gap: 12px; margin-bottom: 12px; }
+.journal-result:empty { display: none; }
+.bet-row small { display: block; }
+.bet-row .record-side b { font-family: var(--font-data); }
