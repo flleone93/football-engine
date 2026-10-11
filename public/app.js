@@ -973,12 +973,12 @@ function renderTimelineCharts(points) {
   if (!points || points.length < 2) return '<p class="muted">Servono almeno 2 partite concluse per disegnare l’andamento.</p>';
   const last = points[points.length - 1];
   const decimals = (value) => decimal(value, 3);
-  return `<div class="timeline-grid">
-    <figure class="timeline-figure">
+  return `<div class="trend-grid">
+    <figure class="trend-figure">
       <figcaption><strong>Brier 1X2 mobile</strong> (più basso è meglio) · <span class="legend model">Motore</span> <span class="legend market">Mercato</span></figcaption>
       ${renderLineChart({ points, series: [{ key: 'brier', className: 'model' }, { key: 'marketBrier', className: 'market' }], format: decimals, label: `Brier mobile: motore ${decimals(last.brier)}${last.marketBrier == null ? '' : `, mercato ${decimals(last.marketBrier)}`}` })}
     </figure>
-    <figure class="timeline-figure">
+    <figure class="trend-figure">
       <figcaption><strong>ROI cumulato</strong> a puntata unitaria · linea tratteggiata = pareggio</figcaption>
       ${points.some((point) => point.roi != null) ? renderLineChart({ points, series: [{ key: 'roi', className: 'model' }], format: (value) => signedPercent(value, 0), reference: 0, label: `ROI cumulato ${last.roi == null ? 'non disponibile' : signedPercent(last.roi)} su ${last.bets} indicazioni` }) : '<p class="muted">Nessuna indicazione con quota da valutare.</p>'}
     </figure>

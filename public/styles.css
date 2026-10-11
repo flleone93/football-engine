@@ -568,9 +568,9 @@ details.nested > summary { cursor: pointer; color: var(--accent); font-size: 13p
 .bet-row .record-side b { font-family: var(--font-data); }
 
 /* ---------- Andamento dello Storico (2.0) ---------- */
-.timeline-grid { display: grid; gap: 14px; }
-.timeline-figure { margin: 0; }
-.timeline-figure figcaption { margin-bottom: 6px; color: var(--muted); font-size: 12.5px; }
+.trend-grid { display: grid; gap: 14px; }
+.trend-figure { margin: 0; }
+.trend-figure figcaption { margin-bottom: 6px; color: var(--muted); font-size: 12.5px; }
 .timeline-chart { display: block; width: 100%; height: auto; }
 .timeline-line { fill: none; stroke-width: 2; }
 .timeline-line.model { stroke: var(--accent); }
@@ -578,4 +578,4 @@ details.nested > summary { cursor: pointer; color: var(--accent); font-size: 13p
 .legend::before { display: inline-block; width: 14px; height: 3px; margin-right: 4px; vertical-align: middle; content: ""; }
 .legend.model::before { background: var(--accent); }
 .legend.market::before { background: var(--away); }
-@media (min-width: 900px) { .timeline-grid { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 900px) { .trend-grid { grid-template-columns: 1fr 1fr; } }
