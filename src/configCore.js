@@ -49,6 +49,7 @@ export function buildConfig(env = {}) {
     port: number('PORT', 8080, 1, 65535),
     demoMode,
     dataProvider,
+    devigMethod: choice('DEVIG_METHOD', 'shin', ['shin', 'proportional']),
     apiKey: env.API_FOOTBALL_KEY || '',
     apiBaseUrl: env.API_FOOTBALL_BASE_URL || 'https://v3.football.api-sports.io',
     timezone: env.TIMEZONE || 'Europe/Rome',

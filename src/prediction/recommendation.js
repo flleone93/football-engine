@@ -1,5 +1,5 @@
 import { clamp, round } from '../utils.js';
-import { devigOdds } from './probability.js';
+import { devig } from './probability.js';
 import { kellyFraction } from './staking.js';
 
 export const LABELS = {
@@ -10,22 +10,29 @@ export const LABELS = {
   OVER_2_5: 'Over 2.5', UNDER_2_5: 'Under 2.5'
 };
 
-function marketProbabilities(odds) {
-  if (!odds?.values) return {};
+function marketProbabilities(odds, method) {
+  if (!odds?.values) return { probabilities: {}, fallbacks: [] };
   const values = odds.values;
-  const oneXtwo = devigOdds([{ key: '1', odd: values['1'] }, { key: 'X', odd: values.X }, { key: '2', odd: values['2'] }]) || {};
-  return {
+  const fallbacks = [];
+  const run = (name, entries) => {
+    const result = devig(entries, method);
+    if (result?.fallback) fallbacks.push(name);
+    return result?.probabilities || {};
+  };
+  const oneXtwo = run('1X2', [{ key: '1', odd: values['1'] }, { key: 'X', odd: values.X }, { key: '2', odd: values['2'] }]);
+  const probabilities = {
     ...oneXtwo,
     ...(oneXtwo['1'] != null ? { '1X': round(oneXtwo['1'] + oneXtwo.X, 6) } : {}),
     ...(oneXtwo['2'] != null ? { X2: round(oneXtwo.X + oneXtwo['2'], 6) } : {}),
-    ...(devigOdds([{ key: 'GOAL', odd: values.GOAL }, { key: 'NO_GOAL', odd: values.NO_GOAL }]) || {}),
-    ...(devigOdds([{ key: 'OVER_1_5', odd: values.OVER_1_5 }, { key: 'UNDER_1_5', odd: values.UNDER_1_5 }]) || {}),
-    ...(devigOdds([{ key: 'OVER_2_5', odd: values.OVER_2_5 }, { key: 'UNDER_2_5', odd: values.UNDER_2_5 }]) || {})
+    ...run('GOAL', [{ key: 'GOAL', odd: values.GOAL }, { key: 'NO_GOAL', odd: values.NO_GOAL }]),
+    ...run('OVER_1_5', [{ key: 'OVER_1_5', odd: values.OVER_1_5 }, { key: 'UNDER_1_5', odd: values.UNDER_1_5 }]),
+    ...run('OVER_2_5', [{ key: 'OVER_2_5', odd: values.OVER_2_5 }, { key: 'UNDER_2_5', odd: values.UNDER_2_5 }])
   };
+  return { probabilities, fallbacks };
 }
 
-export function buildRecommendation(modelMarkets, odds, confidence) {
-  const market = marketProbabilities(odds);
+export function buildRecommendation(modelMarkets, odds, confidence, method = 'proportional') {
+  const { probabilities: market, fallbacks: devigFallbacks } = marketProbabilities(odds, method);
   const reliability = { '1': 1, X: 0.9, '2': 1, '1X': 0.9, X2: 0.9, GOAL: 0.88, NO_GOAL: 0.88, OVER_1_5: 0.82, UNDER_1_5: 0.82, OVER_2_5: 0.92, UNDER_2_5: 0.92 };
   const candidates = Object.keys(LABELS).map((key) => {
     const probability = modelMarkets[key];
@@ -55,6 +62,7 @@ export function buildRecommendation(modelMarkets, odds, confidence) {
   return {
     ...selected,
     hasValue: valueCandidates.length > 0,
+    devigFallbacks,
     status: valueCandidates.length > 0
       ? 'Segnale con margine statistico rispetto alla quota disponibile.'
       : 'Esito più robusto del modello; nessun vantaggio di quota sufficiente rilevato.',

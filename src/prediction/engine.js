@@ -1,5 +1,5 @@
 import { asNumber, clamp, mean, normalizeProbabilities, round, standardDeviation } from '../utils.js';
-import { blendOutcomes, calibrateMatrixToOutcomes, devigOdds, exactScores, marketsFromMatrix, outcomesFromMatrix, scoreMatrix, totalGoalsFromOverProbability } from './probability.js';
+import { blendOutcomes, calibrateMatrixToOutcomes, devig, devigOdds, exactScores, marketsFromMatrix, outcomesFromMatrix, scoreMatrix, totalGoalsFromOverProbability } from './probability.js';
 import { runMonteCarlo } from './monteCarlo.js';
 import { buildRecommendation } from './recommendation.js';
 import { formFromRecent, oddsMovementFromOdds, scoreGridFromMatrix } from './presentation.js';
@@ -119,9 +119,12 @@ function h2hModel(bundle) {
   return { home: bounded[0], draw: bounded[1], away: bounded[2] };
 }
 
-function marketModel(bundle) {
-  const probabilities = oddsProbability(bundle.odds, ['1', 'X', '2']);
-  return probabilities ? { home: probabilities['1'], draw: probabilities.X, away: probabilities['2'] } : null;
+function marketModel(bundle, method) {
+  if (!bundle.odds?.values) return { probabilities: null, devig: null };
+  const result = devig(['1', 'X', '2'].map((key) => ({ key, odd: bundle.odds.values[key] })), method);
+  if (!result) return { probabilities: null, devig: null };
+  const p = result.probabilities;
+  return { probabilities: { home: p['1'], draw: p.X, away: p['2'] }, devig: { method: result.method, fallback: result.fallback, z: result.z } };
 }
 
 function providerModel(bundle) {
@@ -321,10 +324,11 @@ export function analyzeMatch(bundle, options, config) {
   const poissonMatrix = scoreMatrix(lambdas.home, lambdas.away);
   const poisson = outcomesFromMatrix(poissonMatrix);
   const monteCarlo = runMonteCarlo({ fixtureId: bundle.fixture.id, homeLambda: lambdas.home, awayLambda: lambdas.away, runs: config.monteCarloRuns });
+  const market = marketModel(bundle, config.devigMethod);
   const sources = enforceSourceWeightCaps([
     { id: 'poisson', agent: 'Poisson/Dixon-Coles', weight: 25, probabilities: poisson },
     { id: 'montecarlo', agent: 'Monte Carlo', weight: 15, probabilities: monteCarlo.probabilities },
-    { id: 'market', agent: 'Market Odds', weight: 25, probabilities: marketModel(bundle) },
+    { id: 'market', agent: 'Market Odds', weight: 25, probabilities: market.probabilities },
     { id: 'form', agent: 'Recent Form', weight: 18, probabilities: formModel(bundle, neutral) },
     { id: 'provider', agent: 'External Prediction', weight: 10, probabilities: providerModel(bundle) },
     { id: 'h2h', agent: 'Historical Matchup', weight: 7, probabilities: h2hModel(bundle) }
@@ -340,7 +344,7 @@ export function analyzeMatch(bundle, options, config) {
   confidence -= clamp(Number(options?.confidencePenalty) || 0, 0, 25);
   if (config.demoMode) confidence = Math.min(confidence, 72);
   confidence = Math.round(clamp(confidence, 25, 88));
-  const recommendation = buildRecommendation(markets, bundle.odds, confidence);
+  const recommendation = buildRecommendation(markets, bundle.odds, confidence, config.devigMethod);
   const scenarios = scenarioMarkets(lambdas.home, lambdas.away, finalOutcomes);
   const progression = buildProgression(bundle, lambdas, finalOutcomes);
   const timeline = buildTimeline(lambdas.home, lambdas.away);
@@ -416,12 +420,13 @@ export function analyzeMatch(bundle, options, config) {
       bookmaker: bundle.odds?.bookmaker || null,
       oddsMovement: oddsMovementFromOdds(bundle.odds),
       oddsUpdatedAt: bundle.odds?.updatedAt || null,
+      devig: { requested: config.devigMethod, oneXtwo: market.devig, fallbacks: recommendation.devigFallbacks },
       calibration: {
         type: 'structural_matrix_to_ensemble',
         empiricallyBacktested: false,
         note: 'La matrice score e coerente con l’ensemble 1X2; non e applicata una curva empirica per competizione senza uno storico validato.'
       },
-      mathVersion: '2.2.0',
+      mathVersion: '2.3.0',
       lambdaBaseline: baseLambdas,
       lambdaAdjustmentApplied: { home: round(lambdas.home - baseLambdas.home, 3), away: round(lambdas.away - baseLambdas.away, 3) },
       disclaimer: 'Previsione probabilistica, non garanzia di risultato o profitto. Solo per maggiorenni; gioca responsabilmente.'

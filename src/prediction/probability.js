@@ -131,3 +131,42 @@ export function devigOdds(entries) {
   const normalized = normalizeProbabilities(implied);
   return Object.fromEntries(valid.map((entry, index) => [entry.key, round(normalized[index], 6)]));
 }
+/**
+ * Metodo di Shin: modella una quota di scommettitori informati (z) e toglie il margine in modo non proporzionale,
+ * correggendo il favorite-longshot bias. Bisezione su z ∈ [0, 0,999): tolleranza 1e-10, massimo 100 iterazioni.
+ */
+export function devigShin(entries, { tolerance = 1e-10, maxIterations = 100 } = {}) {
+  const valid = entries.filter((entry) => Number.isFinite(entry.odd) && entry.odd > 1);
+  if (valid.length !== entries.length || valid.length < 2) return null;
+  const implied = valid.map((entry) => 1 / entry.odd);
+  const booksum = implied.reduce((total, value) => total + value, 0);
+  const pack = (values) => {
+    const total = values.reduce((sum, value) => sum + value, 0);
+    return Object.fromEntries(valid.map((entry, index) => [entry.key, round(values[index] / total, 6)]));
+  };
+  if (Math.abs(booksum - 1) < 1e-12) return { probabilities: pack(implied), z: 0, converged: true };
+  if (booksum < 1) return { probabilities: null, z: null, converged: false };
+  const probabilities = (z) => implied.map((p) => (Math.sqrt(z * z + 4 * (1 - z) * p * p / booksum) - z) / (2 * (1 - z)));
+  const excess = (z) => probabilities(z).reduce((total, value) => total + value, 0) - 1;
+  let low = 0;
+  let high = 0.999;
+  if (excess(high) > 0) return { probabilities: null, z: null, converged: false };
+  for (let iteration = 0; iteration < maxIterations; iteration += 1) {
+    const middle = (low + high) / 2;
+    const value = excess(middle);
+    if (Math.abs(value) < tolerance) return { probabilities: pack(probabilities(middle)), z: round(middle, 8), converged: true };
+    if (value > 0) low = middle;
+    else high = middle;
+  }
+  return { probabilities: null, z: null, converged: false };
+}
+
+/** De-vig con il metodo scelto; se Shin non converge torna al proporzionale e lo dichiara (`fallback`). */
+export function devig(entries, method = 'shin') {
+  const proportional = devigOdds(entries);
+  if (!proportional) return null;
+  if (method !== 'shin') return { probabilities: proportional, method: 'proportional', fallback: false, z: null };
+  const shin = devigShin(entries);
+  if (!shin?.converged) return { probabilities: proportional, method: 'proportional', fallback: true, z: null };
+  return { probabilities: shin.probabilities, method: 'shin', fallback: false, z: shin.z };
+}
